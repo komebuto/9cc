@@ -1,3 +1,5 @@
+extern char *user_input;
+
 // トークンの種類
 typedef enum {
     TK_RESERVED, // 記号
@@ -14,6 +16,8 @@ struct Token {
     char *str;
     int len;
 };
+
+extern Token *token;
 
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
