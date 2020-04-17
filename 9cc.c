@@ -55,7 +55,7 @@ void error_at(char *loc, char *fmt, ...) {
 
 // 次のトークンが期待している記号の時には、トークンを１つ読み進めて
 // 真を返す。それ以外の場合には偽を返す。
-bool consume(char op) {
+bool consume(char *op) {
     if (token->kind != TK_RESERVED || 
 	strlen(op) != token->len ||
 	memcmp(token->str, op, token->len))
@@ -68,10 +68,12 @@ bool consume(char op) {
 
 // 次のトークンが期待している記号の時には、トークンを１つ読み進める。
 // それ以外の場合にはエラーを報告する。
-void expect(char op) {
-    if (token->kind != TK_RESERVED || token->str[0] != op)
+void expect(char *op) {
+    if (token->kind != TK_RESERVED ||
+        strlen(op) != token->len ||
+	memcmp(token->str, op, token->len))
 	error_at(token->str, "'%c'ではありません", op);
-    else
+    else 
 	token = token->next;
 }
 
@@ -92,10 +94,11 @@ bool at_eof() {
 }
 
 // 新しいトークンを作成してcurにつなげる
-Token *new_token(TokenKind kind, Token *cur, char *str) {
+Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
     Token *tok = calloc(1, sizeof(Token));
     tok->kind = kind;
     tok->str = str;
+    tok->len = len;
     cur->next = tok;
     return tok;
 }
@@ -110,14 +113,23 @@ Token *tokenize(char *p) {
 	    p++;
 	    continue;
 	}
+        
+	if (strncmp(p, "==", 2) == 0 ||
+	    strncmp(p, "!=", 2) == 0 ||
+	    strncmp(p, "<=", 2) == 0 ||
+	    strncmp(p, ">=", 2) == 0) {
+	    cur = new_token(TK_RESERVED, cur, p, 2);
+	    p += 2;
+	    continue;
+	}
 
-	if (strchr("+-*/()", *p)) {
-	    cur = new_token(TK_RESERVED, cur, p++);
+	if (strchr("+-*/()><", *p)) {
+	    cur = new_token(TK_RESERVED, cur, p++, 1);
 	    continue;
 	}
 
 	if (isdigit(*p)) {
-	    cur = new_token(TK_NUM, cur, p);
+	    cur = new_token(TK_NUM, cur, p, 1);
 	    cur->val = strtol(p, &p, 10);
 	    continue;
 	}
@@ -125,7 +137,7 @@ Token *tokenize(char *p) {
         error_at(cur->str+1, "トークナイズできません");
     }
 
-    new_token(TK_EOF, cur, p);
+    new_token(TK_EOF, cur, p, 1);
     return head.next;
 }
 
@@ -139,9 +151,7 @@ typedef enum {
     ND_NUM, // 数
     ND_EQ,  // ==
     ND_NEQ, // !=
-    ND_GRT,   // >
-    ND_GEQ, // >=
-    ND_LES,   // <
+    ND_LESS,// <
     ND_LEQ, // <=
 } NodeKind;
 
@@ -173,7 +183,7 @@ Node *new_node_num(int val) {
     return node;
 }
 
-Node *equality(), *relational(), *add(), *mul(), *unary(), *primary;
+Node *equality(), *relational(), *add(), *mul(), *unary(), *primary();
 
 Node *expr() {
     Node *node = equality();
@@ -193,18 +203,21 @@ Node *equality() {
     }
 }
 
-Node *reational() {
+// 大なり、小なり.
+// アセンブリコードで setl, setle のみを扱うので
+// 大なりは両辺を入れ替えて小なりとして扱う.
+Node *relational() {
     Node *node = add();
 
     for (;;) {
 	if (consume(">="))
-            node = new_node(ND_GEQ, node, add());
+            node = new_node(ND_LEQ, add(), node);
 	else if (consume("<="))
 	    node = new_node(ND_LEQ, node, add());
-	else if (consume('>'))
-	    node = new_node(ND_GRT, node, add());
-	else if (consume('<'))
-	    node = new_node(ND_LES, node, add());
+	else if (consume(">"))
+	    node = new_node(ND_LESS, add(), node);
+	else if (consume("<"))
+	    node = new_node(ND_LESS, node, add());
 	else
 	    return node;
     }
@@ -214,9 +227,9 @@ Node *add() {
     Node *node = mul();
 
     for (;;) {
-	if (consume('+'))
+	if (consume("+"))
 	    node = new_node(ND_ADD, node, mul());
-	else if (consume('-'))
+	else if (consume("-"))
 	    node = new_node(ND_SUB, node, mul());
 	else
 	    return node;
@@ -227,9 +240,9 @@ Node *mul() {
     Node *node = unary();
 
     for (;;) {
-	if (consume('*'))
+	if (consume("*"))
 	    node = new_node(ND_MUL, node, unary());
-	else if (consume('/'))
+	else if (consume("/"))
 	    node = new_node(ND_DIV, node, unary());
 	else
 	    return node;
@@ -238,18 +251,18 @@ Node *mul() {
 
 // 単項の+, -。 -x は 0-x に変換
 Node *unary() {
-    if (consume('+'))
+    if (consume("+"))
 	return primary();
-    else if (consume('-'))
+    else if (consume("-"))
 	return new_node(ND_SUB, new_node_num(0), primary());
     return primary();
 }
 
 
 Node *primary() {
-    if (consume('(')) {
+    if (consume("(")) {
 	Node *node = expr();
-        expect(')');
+        expect(")");
 	return node;
     } else {
         return new_node_num(expect_number());
@@ -283,6 +296,27 @@ void gen(Node *node) {
 	case ND_DIV:
 	    printf("    cqo\n");
 	    printf("    idiv rdi\n");
+	    break;
+	
+	case ND_EQ:
+	    printf("    cmp rax, rdi\n");
+	    printf("    sete al\n");	   // ALはRAXの下位8ビットを指す 
+	    printf("    movzb rax, al\n"); // ALを残して, RAXの上位56ビットをゼロクリア
+	    break;
+	case ND_NEQ:
+	    printf("    cmp rax, rdi\n");
+	    printf("    setne al\n");
+	    printf("    movzb rax, al\n");
+	    break;
+	case ND_LESS:
+	    printf("    cmp rax, rdi\n");
+	    printf("    setl al\n");
+	    printf("    movzb rax, al\n");
+	    break;
+	case ND_LEQ:
+	    printf("    cmp rax, rdi\n");
+	    printf("    setle al\n");
+	    printf("    movzb rax, al\n");
 	    break;
     }
 
