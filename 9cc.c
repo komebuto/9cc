@@ -4,26 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "9cc.h"
 
-// トークンの種類
-typedef enum{
-    TK_RESERVED, // 記号
-    TK_NUM,	 // 整数トークン
-    TK_EOF,	 // 入力の終わりを表すトークン
-} TokenKind;
-
-// これで、struct Token (変数) ではなく、Token (変数) と宣言できる
-typedef struct Token Token;
-
-struct Token {
-    TokenKind kind; 	// トークンの型
-    Token *next;	// 次の入力トークン
-    int val;		// kindがTK_NUMの場合、その数値
-    char *str;		// トークン文字列
-    int len;	 	// トークンの長さ
-};
-
-// 現在着目しているトークン
+char *user_input;
 Token *token;
 
 // エラーを報告するための関数
@@ -35,9 +18,6 @@ void error(char *fmt, ...) {
     fprintf(stderr, "\n");
     exit(1);
 }
-
-// 入力プログラム
-char *user_input;
 
 // エラー箇所を報告する
 void error_at(char *loc, char *fmt, ...) {
@@ -141,30 +121,6 @@ Token *tokenize(char *p) {
     return head.next;
 }
 
-
-// 抽象構文木のノードの種類
-typedef enum {
-    ND_ADD, // +
-    ND_SUB, // -
-    ND_MUL, // *
-    ND_DIV, // /
-    ND_NUM, // 数
-    ND_EQ,  // ==
-    ND_NEQ, // !=
-    ND_LESS,// <
-    ND_LEQ, // <=
-} NodeKind;
-
-typedef struct Node Node;
-
-// 抽象構文木のノードの型
-struct Node {
-    NodeKind kind; // ノードの型
-    Node *lhs;	   // left hand side
-    Node *rhs;	   // right hand side
-    int val;	   // kindがND_NUMの場合の値
-};
-
 // 新しいノードを作成する関数
 // ノードが記号の場合
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
@@ -182,8 +138,6 @@ Node *new_node_num(int val) {
     node->val = val;
     return node;
 }
-
-Node *equality(), *relational(), *add(), *mul(), *unary(), *primary();
 
 Node *expr() {
     Node *node = equality();
