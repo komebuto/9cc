@@ -107,7 +107,7 @@ Token *tokenize(char *p) {
 	    continue;
 	}
 
-	if (*p == '+' || *p == '-') {
+	if (*p == '+' || *p == '-' || *p == '*' || *p == '/' || *p == '(' || *p == ')') {
 	    cur = new_token(TK_RESERVED, cur, p++);
 	    continue;
 	}
@@ -163,6 +163,9 @@ Node *new_node_num(int val) {
     return node;
 }
 
+Node *mul();
+Node *primary();
+
 Node *expr() {
     Node *node = mul();
 
@@ -193,7 +196,7 @@ Node *primary() {
     if (consume('(')) {
 	Node *node = expr();
         expect(')');
-	return node
+	return node;
     } else {
         return new_node_num(expect_number());
     }
@@ -239,26 +242,23 @@ int main(int argc, char **argv){
 	return 1;
     }
 
+    // error_at関数で使う。入力プログラム
     user_input = argv[1];
+    // トークナイズしてパースする
     token = tokenize(argv[1]);
-
+    Node *node = expr();
+    
+    // アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
     printf(".global main\n");
     printf("main:\n");
     
-    // 式の最初が数であるかのチェックと最初のmov命令を出力
-    printf("    mov rax, %d\n", expect_number());
-
-    while (!at_eof()) {
-	if (consume('+')) {
-	    printf("    add rax, %d\n", expect_number());
-	    continue;
-        }
-
-	expect('-');
-	printf("    sub rax, %d\n", expect_number());
-    }
-
+    // 抽象構文木を下りながらコード生成
+    gen(node);
+    
+    // スタックトップに式全体の値がある
+    // RAXにロードして関数からの返り値とする
+    printf("    pop rax\n");
     printf("    ret\n");
     return 0;
 }
