@@ -20,6 +20,7 @@ struct Token {
     Token *next;	// 次の入力トークン
     int val;		// kindがTK_NUMの場合、その数値
     char *str;		// トークン文字列
+    int len;	 	// トークンの長さ
 };
 
 // 現在着目しているトークン
@@ -55,11 +56,14 @@ void error_at(char *loc, char *fmt, ...) {
 // 次のトークンが期待している記号の時には、トークンを１つ読み進めて
 // 真を返す。それ以外の場合には偽を返す。
 bool consume(char op) {
-    if (token->kind != TK_RESERVED || token->str[0] != op)
+    if (token->kind != TK_RESERVED || 
+	strlen(op) != token->len ||
+	memcmp(token->str, op, token->len))
         return false;
-    else
+    else {
 	token = token->next;
         return true;
+    }
 }
 
 // 次のトークンが期待している記号の時には、トークンを１つ読み進める。
@@ -133,6 +137,12 @@ typedef enum {
     ND_MUL, // *
     ND_DIV, // /
     ND_NUM, // 数
+    ND_EQ,  // ==
+    ND_NEQ, // !=
+    ND_GRT,   // >
+    ND_GEQ, // >=
+    ND_LES,   // <
+    ND_LEQ, // <=
 } NodeKind;
 
 typedef struct Node Node;
@@ -163,11 +173,44 @@ Node *new_node_num(int val) {
     return node;
 }
 
-Node *mul();
-Node *primary();
-Node *unary();
+Node *equality(), *relational(), *add(), *mul(), *unary(), *primary;
 
 Node *expr() {
+    Node *node = equality();
+    return node;
+}
+
+Node *equality() {
+    Node *node = relational();
+
+    for (;;) {
+	if (consume("=="))
+	    node = new_node(ND_EQ, node, relational());
+        else if (consume("!="))
+	    node = new_node(ND_NEQ, node, relational());
+	else
+	    return node;
+    }
+}
+
+Node *reational() {
+    Node *node = add();
+
+    for (;;) {
+	if (consume(">="))
+            node = new_node(ND_GEQ, node, add());
+	else if (consume("<="))
+	    node = new_node(ND_LEQ, node, add());
+	else if (consume('>'))
+	    node = new_node(ND_GRT, node, add());
+	else if (consume('<'))
+	    node = new_node(ND_LES, node, add());
+	else
+	    return node;
+    }
+}
+
+Node *add() {
     Node *node = mul();
 
     for (;;) {
@@ -193,7 +236,7 @@ Node *mul() {
     }
 }
 
-// 単項の+, -。 -は 0 - 値 に変換
+// 単項の+, -。 -x は 0-x に変換
 Node *unary() {
     if (consume('+'))
 	return primary();
