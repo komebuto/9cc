@@ -6,14 +6,15 @@ Node *code[100];
 
 int main(int argc, char **argv){
     if (argc != 2) {
-	error("引数の個数が正しくありません");
+	    error("引数の個数が正しくありません");
 	return 1;
     }
 
-    // error_at関数で使う。入力プログラム
+    // 入力プログラム
     user_input = argv[1];
-    // トークナイズしてパースする
-    token = tokenize(argv[1]);
+    // トークナイズ => Token *token
+    tokenize();
+    // パース => Node *code[100]
     program();
     
     // アセンブリの前半部分を出力
@@ -23,9 +24,9 @@ int main(int argc, char **argv){
 
     // プロローグ
     // 変数26個分の領域を確保する
-    printf("    push rbp\n");
-    printf("    mov rbp, rsp\n");
-    printf("    sub rsp, 208\n");
+    printf("    push rbp\n");       // 呼び出し元の関数のベースポインタをpush
+    printf("    mov rbp, rsp\n");   // そのベースポインタを指すようにRBPを変更
+    printf("    sub rsp, 208\n");   // １文字変数(a-z)の分の領域を確保(26*8 bits)
     
     // 先頭の式から順に
     // 抽象構文木を下りながらコード生成
@@ -38,10 +39,9 @@ int main(int argc, char **argv){
     }
     
     // エピローグ
-    // スタックトップに式全体の値がある
-    // RAXにロードして関数からの返り値とする
-    printf("    mov rsp, rbp\n");
-    printf("    pop rbp\n");
-    printf("    ret\n");
+    // 最後の式の結果がRAXに残っているのでそれが返り値となる
+    printf("    mov rsp, rbp\n");  // 呼び出し元のベースポインタをRSPが指すように変更(popするため)
+    printf("    pop rbp\n");       // 呼び出し元のベースポインタをRBPに代入して, 元に戻る
+    printf("    ret\n");           // 呼び出した関数の返り値(RAX)をret
     return 0;
 }

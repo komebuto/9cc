@@ -7,7 +7,7 @@
 
 extern char *user_input;
 
-// トークンの種類
+// TokenKind
 typedef enum {
     TK_RESERVED, // 記号
     TK_IDENT,    // 識別子
@@ -15,6 +15,7 @@ typedef enum {
     TK_EOF,      // 入力の終わりを表すトークン
 } TokenKind;
 
+// Token
 typedef struct Token Token;
 struct Token {
     TokenKind kind;
@@ -24,33 +25,40 @@ struct Token {
     int len;
 };
 
+// 注目しているToken
 extern Token *token;
 
+// エラーを報告する関数
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 
+// Tokenを読み進めながら内容を判定するための関数
 bool consume(char *op);
 void expect(char *op);
 int expect_number();
 bool at_eof();
-Token *new_token(TokenKind kind, Token *cur, char *str);
-Token *tokenize(char *p);
 
-// Node
+// 新しいトークンを作る関数
+Token *new_token(TokenKind kind, Token *cur, char *str, int len);
+// user_inputをトークナイズして先頭のトークンをtokenに代入
+void tokenize(void);
+
+// NodeKind
 typedef enum {
-    ND_ADD,  // +
-    ND_SUB,  // -
-    ND_MUL,  // *
-    ND_DIV,  // /
-    ND_NUM,  // number
-    ND_LVAR, // local variable
+    ND_NUM,     // number
+    ND_LVAR,    // local variable
+    ND_ADD,     // +
+    ND_SUB,     // -
+    ND_MUL,     // *
+    ND_DIV,     // /
     ND_ASSIGN,  // =
-    ND_EQ,   // ==
-    ND_NEQ,  // !=
-    ND_LESS, // <
-    ND_LEQ,  // <=
+    ND_EQ,      // ==
+    ND_NEQ,     // !=
+    ND_LESS,    // <
+    ND_LEQ,     // <=
 } NodeKind;
 
+// Node
 typedef struct Node Node;
 struct Node {
     NodeKind kind; // ノードの型
@@ -64,6 +72,7 @@ struct Node {
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 Node *new_node_num(int val);
 
+// パーサーで使う関数
 void program(void);
 Node *stmt(void);
 Node *expr(void);
@@ -75,6 +84,8 @@ Node *mul(void);
 Node *unary(void);
 Node *primary(void);
 
+// コードジェネレーター
 void gen(Node *node);
 
+// argv[1]に与えられたコードをコンパイル
 int main(int argc, char **argv);

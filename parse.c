@@ -40,6 +40,8 @@ int expect_number() {
     }
 }
 
+// 次のトークンが識別子の場合その文字を返す。
+// それ以外の場合は 0 を返す。
 char *consume_ident() {
     if (token->kind != TK_IDENT) {
         return 0;
@@ -50,6 +52,7 @@ char *consume_ident() {
     }
 }
 
+// 次のトークンが入力の終わりである時trueを返す
 bool at_eof() {
     return token->kind == TK_EOF;
 }
@@ -72,6 +75,7 @@ Node *new_node_num(int val) {
     return node;
 }
 
+// primary = num | ident | "(" expr ")"
 Node *primary() {
     if (consume("(")) {
 	    Node *node = expr();
@@ -89,6 +93,7 @@ Node *primary() {
     }
 }	 
 
+// unary = ("+" | "-")? primary
 // 単項の+, -。 -x は 0-x に変換
 Node *unary() {
     if (consume("+"))
@@ -98,6 +103,7 @@ Node *unary() {
     return primary();
 }   
 
+// mul = unary ("*" unary | "/" unary)*
 Node *mul() {
     Node *node = unary();
     for (;;) {
@@ -110,6 +116,7 @@ Node *mul() {
     }
 }
 
+// add = mul ("+" mul | "-" mul)*
 Node *add() {
     Node *node = mul();
     for (;;) {
@@ -122,7 +129,7 @@ Node *add() {
     }
 }
 
-// 大なり、小なり.
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 // アセンブリコードで setl, setle のみを扱うので
 // 大なりは両辺を入れ替えて小なりとして扱う.
 Node *relational() {
@@ -141,6 +148,7 @@ Node *relational() {
     }
 }
 
+// equality = relational ("==" relational | "!=" relational)*
 Node *equality() {
     Node *node = relational();
     for (;;) {
@@ -153,6 +161,7 @@ Node *equality() {
     }
 }
 
+// assign = equality ("=" assign)?
 Node *assign() {
     Node *node = equality();
     if (consume("="))
@@ -160,16 +169,20 @@ Node *assign() {
     return node;
 }
 
+// expr = assign
 Node *expr() {
     return assign();
 }
 
+// stmt = expr ";"
 Node *stmt() {
     Node *node = expr();
     expect(";");
     return node;
 }
 
+// program = stmt*
+// stmt毎にNode *code[100]に格納
 void program() {
     int i = 0;
     while(!at_eof())

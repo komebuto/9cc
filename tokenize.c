@@ -1,5 +1,17 @@
 #include "9cc.h"
 
+char *user_input;
+Token *token;
+
+void error(char *fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	exit(1);
+}
+
 // エラー箇所を報告する
 void error_at(char *loc, char *fmt, ...) {
     va_list ap;
@@ -15,58 +27,62 @@ void error_at(char *loc, char *fmt, ...) {
 }
 
 // 新しいトークンを作成してcurにつなげる
-Token *new_token(TokenKind kind, Token *cur, char *str) {
+Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
     Token *tok = calloc(1, sizeof(Token));
     tok->kind = kind;
     tok->str = str;
+	tok->len = len;
     cur->next = tok;
     return tok;
 }
 
-Token *tokenize(char *p) {
+void tokenize() {
     Token head;
     head.next = NULL;
     Token *cur = &head;
 
-    while (*p) {
-		if (isspace(*p)) {
-	    	p++;
+    while (*user_input) {
+		if (isspace(*user_input)) {
+	    	user_input++;
 	    	continue;
 		}
 
-		if (strncmp(p, "==", 2) == 0 ||
-	    	strncmp(p, "!=", 2) == 0 ||
-	    	strncmp(p, "<=", 2) == 0 ||
-	    	strncmp(p, ">=", 2) == 0) {
-	    	cur = new_token(TK_RESERVED, cur, p);
-			cur->len = 2;
-	    	p += 2;
+		// ２文字の記号
+		if (strncmp(user_input, "==", 2) == 0 ||
+	    	strncmp(user_input, "!=", 2) == 0 ||
+	    	strncmp(user_input, "<=", 2) == 0 ||
+	    	strncmp(user_input, ">=", 2) == 0) {
+	    	cur = new_token(TK_RESERVED, cur, user_input, 2);
+	    	user_input += 2;
 	    	continue;
 		}
 
-		if (strchr("+-*/()=><;", *p)) {
-	    	cur = new_token(TK_RESERVED, cur, p++);
-			cur->len = 1;
+		// １文字の記号
+		if (strchr("+-*/()=><;", *user_input)) {
+	    	cur = new_token(TK_RESERVED, cur, user_input++, 1);
 	    	continue;
 		}
-    
-		if ('a' <= *p && *p <= 'z') {
-			cur = new_token(TK_IDENT, cur, p++);
-			cur->len = 1;
+
+		// １文字の識別子
+		if ('a' <= *user_input && *user_input <= 'z') {
+			cur = new_token(TK_IDENT, cur, user_input++, 1);
 			continue;
 		}
 
-		if (isdigit(*p)) {
-	    	cur = new_token(TK_NUM, cur, p);
-			cur->len = 1;
-	    	cur->val = strtol(p, &p, 10);
+		// 整数 (int)
+		if (isdigit(*user_input)) {
+	    	cur = new_token(TK_NUM, cur, user_input, 1);
+	    	cur->val = strtol(user_input, &user_input, 10);
 	    	continue;
 		}
 
+		// その他
         error_at(cur->str+1, "トークナイズできません");
     }
 
-    new_token(TK_EOF, cur, p);
-    return head.next;
+	// 入力の終わり
+    new_token(TK_EOF, cur, user_input, 1);
+    token = head.next;
+	return;
 }
 
