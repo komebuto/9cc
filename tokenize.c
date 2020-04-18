@@ -60,11 +60,11 @@ void tokenize() {
 	    	continue;
 		}
 
-		// アルファベットからなる識別子
+		// "alpha (alpha | num)*" からなる識別子
 		if (isalpha(*user_input)) {
 			char *tmp = user_input;
 			// user_input ~ tmp-1 までがアルファベットからなる識別子
-			for (tmp; isalpha(*tmp); tmp++);
+			for (tmp; isalnum(*tmp); tmp++);
 			cur = new_token(TK_IDENT, cur, user_input, tmp - user_input);
 			user_input = tmp;
 			continue;
