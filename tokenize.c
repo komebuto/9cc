@@ -48,10 +48,10 @@ void tokenize() {
 		}
 
 		// ２文字の記号
-		if (strncmp(user_input, "==", 2) == 0 ||
-	    	strncmp(user_input, "!=", 2) == 0 ||
-	    	strncmp(user_input, "<=", 2) == 0 ||
-	    	strncmp(user_input, ">=", 2) == 0) {
+		if (!strncmp(user_input, "==", 2) ||
+	    	!strncmp(user_input, "!=", 2) ||
+	    	!strncmp(user_input, "<=", 2) ||
+	    	!strncmp(user_input, ">=", 2) ) {
 	    	cur = new_token(TK_RESERVED, cur, user_input, 2);
 	    	user_input += 2;
 	    	continue;
@@ -63,9 +63,13 @@ void tokenize() {
 	    	continue;
 		}
 
-		// １文字の識別子
-		if ('a' <= *user_input && *user_input <= 'z') {
-			cur = new_token(TK_IDENT, cur, user_input++, 1);
+		// アルファベットからなる識別子
+		if (isalpha(*user_input)) {
+			char *tmp = user_input;
+			// user_input ~ tmp-1 までがアルファベットからなる識別子
+			for (tmp; isalpha(*tmp); tmp++);
+			cur = new_token(TK_IDENT, cur, user_input, tmp - user_input);
+			user_input = tmp;
 			continue;
 		}
 

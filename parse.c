@@ -2,6 +2,7 @@
 
 char *user_input;
 Token *token;
+LVar *locals;
 Node *code[100];
 
 // 次のトークンが期待している記号の時には、トークンを１つ読み進めて
@@ -42,14 +43,24 @@ int expect_number() {
 
 // 次のトークンが識別子の場合その文字を返す。
 // それ以外の場合は 0 を返す。
-char *consume_ident() {
+Token *consume_ident() {
     if (token->kind != TK_IDENT) {
         return 0;
     } else {
-        char *str = token->str;
+        Token *tok = token;
         token = token->next;
-        return str;
+        return tok;
     }
+}
+
+// 変数を名前で検索する。見つからなかった場合はNULLを返す。
+LVar *find_lvar(Token *tok) {
+    for (LVar *var = locals; var; var = var->next){
+        if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)){
+            return var;
+        }
+    }
+    return NULL;
 }
 
 // 次のトークンが入力の終わりである時trueを返す
@@ -82,11 +93,27 @@ Node *primary() {
         expect(")");
 	    return node;
     } else {
-        char *str = consume_ident();
-        if (str) {
+        Token *tok = consume_ident();
+        if (tok) {
+            // トークンが識別子であるときは, 対応するノードをローカル変数として
             Node *node = calloc(1, sizeof(Node));
             node->kind = ND_LVAR;
-            node->offset = (*str - 'a' + 1) * 8;
+
+            // その変数のRBPからのオフセットの情報を得る
+            LVar *lvar = find_lvar(tok);
+            if (lvar) {
+                node->offset = lvar->offset;
+            } else {
+                // 同時にLVar *localsの連結リストを作成
+                lvar = calloc(1, sizeof(LVar));
+                lvar->next = locals;
+                lvar->name = tok->str;
+                lvar->len = tok->len;
+                lvar->offset = locals->offset + 8;
+                locals = lvar;
+
+                node->offset = lvar->offset;
+            }
             return node;
         }
         return new_node_num(expect_number());
