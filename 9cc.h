@@ -28,15 +28,16 @@ struct Token {
 // 注目しているToken
 extern Token *token;
 
-// エラーを報告する関数
-void error(char *fmt, ...);
-void error_at(char *loc, char *fmt, ...);
+// Local variable
+typedef struct LVar LVar;
+struct LVar {
+    LVar *next; // 次の変数かNULL
+    char *name; // 変数の名前
+    int len;    // 名前の長さ
+    int offset; // RBPからのオフセット
+};
 
-// Tokenを読み進めながら内容を判定するための関数
-bool consume(char *op);
-void expect(char *op);
-int expect_number();
-bool at_eof();
+extern LVar *locals;
 
 // 新しいトークンを作る関数
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
@@ -67,6 +68,16 @@ struct Node {
     int val;       // kindがND_NUMの場合の値
     int offset;    // kindがND_LVARの場合のみ使用
 };
+
+// エラーを報告する関数
+void error(char *fmt, ...);
+void error_at(char *loc, char *fmt, ...);
+
+// Tokenを読み進めながら内容を判定するための関数
+bool consume(char *op);
+void expect(char *op);
+int expect_number();
+bool at_eof();
 
 // 新しいノードを作る関数
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs);

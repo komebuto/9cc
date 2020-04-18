@@ -1,7 +1,5 @@
 #include "9cc.h"
 
-char *user_input;
-Token *token;
 LVar *locals;
 Node *code[100];
 
@@ -95,7 +93,7 @@ Node *primary() {
     } else {
         Token *tok = consume_ident();
         if (tok) {
-            // トークンが識別子であるときは, 対応するノードをローカル変数として
+            // トークンが識別子であるときは, ノードの型をND_LVARとして
             Node *node = calloc(1, sizeof(Node));
             node->kind = ND_LVAR;
 
@@ -111,7 +109,6 @@ Node *primary() {
                 lvar->len = tok->len;
                 lvar->offset = locals->offset + 8;
                 locals = lvar;
-
                 node->offset = lvar->offset;
             }
             return node;

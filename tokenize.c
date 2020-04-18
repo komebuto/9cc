@@ -1,8 +1,5 @@
 #include "9cc.h"
 
-char *user_input;
-Token *token;
-
 void error(char *fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);

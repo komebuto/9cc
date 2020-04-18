@@ -32,8 +32,7 @@
 // movzb (1), (2): (2)以外の(1)の残りの部分をゼロクリア ((2)は(1)の部分レジスタ)
 
 // 代入の左辺がアドレスを指すものかどうかを調べる ((a+1) = 2 のような不正な代入式を排除)
-// その場合、その番地をスタックにプッシュ
-
+// その変数の番地をスタックにプッシュ
 void gen_lval(Node *node) {
 	if (node->kind != ND_LVAR)
 		error("代入の左辺値が変数ではありません");
@@ -52,16 +51,16 @@ void gen(Node *node) {
 			gen_lval(node);						// 変数のアドレスをpush
 			printf("    pop rax\n");			// そのアドレスをraxにpop
 			printf("    mov rax, [rax]\n");		// rax番地の値をraxにロード
-			printf("	push rax\n");			// ロードされた値をpush
+			printf("    push rax\n");			// ロードされた値をpush
 			return;
 		case ND_ASSIGN:
 			gen_lval(node->lhs);  // 左辺の変数のアドレスをpush
 			gen(node->rhs);       // 右辺
 
-			printf("	pop rdi\n");  // 代入式の右辺
-			printf("	pop rax\n");  // 代入式の左辺（変数のアドレス）
-			printf("	mov [rax], rdi\n");  // [rax]番地にrdiの値をストア
-			printf("	push rdi\n"); // 代入式全体の評価値をpush
+			printf("    pop rdi\n");  // 代入式の右辺
+			printf("    pop rax\n");  // 代入式の左辺（変数のアドレス）
+			printf("    mov [rax], rdi\n");  // [rax]番地にrdiの値をストア
+			printf("    push rdi\n"); // 代入式全体の評価値をpush
 			return;
 	}
 

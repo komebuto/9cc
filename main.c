@@ -2,6 +2,7 @@
 
 char *user_input;
 Token *token;
+LVar *locals;
 Node *code[100];
 
 int main(int argc, char **argv){
@@ -14,6 +15,8 @@ int main(int argc, char **argv){
     user_input = argv[1];
     // トークナイズ => Token *token
     tokenize();
+
+    locals = calloc(1, sizeof(LVar));  
     // パース => Node *code[100]
     program();
     
@@ -26,7 +29,7 @@ int main(int argc, char **argv){
     // 変数26個分の領域を確保する
     printf("    push rbp\n");       // 呼び出し元の関数のベースポインタをpush
     printf("    mov rbp, rsp\n");   // そのベースポインタを指すようにRBPを変更
-    printf("    sub rsp, 208\n");   // １文字変数(a-z)の分の領域を確保(26*8 bits)
+    printf("    sub rsp, %d\n", locals->offset);   // 変数の数分の領域を確保
     
     // 先頭の式から順に
     // 抽象構文木を下りながらコード生成

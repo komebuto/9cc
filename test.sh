@@ -31,5 +31,6 @@ assert 1 "2>=2;"
 assert 0 "2<1;"
 assert 0 "2<=1;"
 assert 1 " a = 2; a == 2;"
+assert 1 "ab=3; bc=4; bc-ab;"
 
 echo OK
