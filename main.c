@@ -14,7 +14,7 @@ int main(int argc, char **argv){
     // 入力プログラム
     user_input = argv[1];
     // トークナイズ => Token *token
-    tokenize();
+    tokenize(user_input);
 
     locals = calloc(1, sizeof(LVar));  
     // パース => Node *code[100]

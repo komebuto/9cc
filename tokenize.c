@@ -1,5 +1,9 @@
 #include "9cc.h"
 
+int is_alnum(char c) {
+	return isalnum(c) || (c == '_');
+}
+
 void error(char *fmt, ...) {
 	va_list ap;
 	va_start(ap, fmt);
@@ -33,47 +37,54 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
     return tok;
 }
 
-void tokenize() {
+void tokenize(char *p) {
     Token head;
     head.next = NULL;
     Token *cur = &head;
 
-    while (*user_input) {
-		if (isspace(*user_input)) {
-	    	user_input++;
+    while (*p) {
+		if (isspace(*p)) {
+	    	p++;
 	    	continue;
 		}
 
+		// return
+		if (!strncmp(p, "return", 6) && !is_alnum(p[6])) {
+			cur = new_token(TK_RETURN, cur, "return", 6);
+			p += 6;
+			continue;
+		}
+
 		// ２文字の記号
-		if (!strncmp(user_input, "==", 2) ||
-	    	!strncmp(user_input, "!=", 2) ||
-	    	!strncmp(user_input, "<=", 2) ||
-	    	!strncmp(user_input, ">=", 2) ) {
-	    	cur = new_token(TK_RESERVED, cur, user_input, 2);
-	    	user_input += 2;
+		if (!strncmp(p, "==", 2) ||
+	    	!strncmp(p, "!=", 2) ||
+	    	!strncmp(p, "<=", 2) ||
+	    	!strncmp(p, ">=", 2) ) {
+	    	cur = new_token(TK_RESERVED, cur, p, 2);
+			p += 2;
 	    	continue;
 		}
 
 		// １文字の記号
-		if (strchr("+-*/()=><;", *user_input)) {
-	    	cur = new_token(TK_RESERVED, cur, user_input++, 1);
+		if (strchr("+-*/()=><;", *p)) {
+	    	cur = new_token(TK_RESERVED, cur, p++, 1);
 	    	continue;
 		}
 
 		// "alpha (alpha | num)*" からなる識別子
-		if (isalpha(*user_input)) {
-			char *tmp = user_input;
-			// user_input ~ tmp-1 までがアルファベットからなる識別子
-			for (tmp; isalnum(*tmp); tmp++);
-			cur = new_token(TK_IDENT, cur, user_input, tmp - user_input);
-			user_input = tmp;
+		if (isalpha(*p) || *p == '_') {
+			char *tmp = p;
+			// p ~ tmp-1 までがアルファベットからなる識別子
+			for (tmp; is_alnum(*tmp); tmp++);
+			cur = new_token(TK_IDENT, cur, p, tmp - p);
+			p = tmp;
 			continue;
 		}
 
 		// 整数 (int)
-		if (isdigit(*user_input)) {
-	    	cur = new_token(TK_NUM, cur, user_input, 1);
-	    	cur->val = strtol(user_input, &user_input, 10);
+		if (isdigit(*p)) {
+	    	cur = new_token(TK_NUM, cur, p, 1);
+	    	cur->val = strtol(p, &p, 10);
 	    	continue;
 		}
 
@@ -82,7 +93,7 @@ void tokenize() {
     }
 
 	// 入力の終わり
-    new_token(TK_EOF, cur, user_input, 1);
+    new_token(TK_EOF, cur, p, 1);
     token = head.next;
 	return;
 }

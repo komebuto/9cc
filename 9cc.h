@@ -13,6 +13,7 @@ typedef enum {
     TK_IDENT,    // 識別子
     TK_NUM,      // 整数
     TK_EOF,      // 入力の終わりを表すトークン
+    TK_RETURN,   // return
 } TokenKind;
 
 // Token
@@ -42,7 +43,7 @@ extern LVar *locals;
 // 新しいトークンを作る関数
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 // user_inputをトークナイズして先頭のトークンをtokenに代入
-void tokenize(void);
+void tokenize(char *p);
 
 // NodeKind
 typedef enum {
@@ -57,6 +58,7 @@ typedef enum {
     ND_NEQ,     // !=
     ND_LESS,    // <
     ND_LEQ,     // <=
+    ND_RETURN,  // return
 } NodeKind;
 
 // Node

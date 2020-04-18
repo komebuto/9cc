@@ -43,6 +43,14 @@ void gen_lval(Node *node) {
 
 // コードジェネレータ
 void gen(Node *node) {
+	if (node->kind == ND_RETURN) {
+		gen(node->lhs);
+		printf("    pop rax\n"); // lhsの計算結果をpop
+		printf("    mov rsp, rbp\n");
+		printf("    pop rbp\n");
+		printf("    ret\n");
+		return;
+	}
     switch (node->kind) {
 		case ND_NUM:
 			printf("    push %d\n", node->val); // 数字の場合の値をpush

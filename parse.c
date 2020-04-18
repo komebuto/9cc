@@ -39,7 +39,7 @@ int expect_number() {
     }
 }
 
-// 次のトークンが識別子の場合その文字を返す。
+// 次のトークンが識別子の場合そのトークンを返す。
 // それ以外の場合は 0 を返す。
 Token *consume_ident() {
     if (token->kind != TK_IDENT) {
@@ -59,6 +59,16 @@ LVar *find_lvar(Token *tok) {
         }
     }
     return NULL;
+}
+
+// 
+int consume_return() {
+    if (token->kind != TK_RETURN || token->len != 6) {
+        return 0;
+    } else {
+        token = token->next;
+        return 1;
+    }
 }
 
 // 次のトークンが入力の終わりである時trueを返す
@@ -198,9 +208,16 @@ Node *expr() {
     return assign();
 }
 
-// stmt = expr ";"
+// stmt = expr ";" | "return" expr ";"
 Node *stmt() {
-    Node *node = expr();
+    Node *node;
+    if (consume_return()) {
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_RETURN;
+        node->lhs = expr();
+    } else {
+        node = expr();
+    }
     expect(";");
     return node;
 }
