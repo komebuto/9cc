@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern unsigned long nbegin;
+extern unsigned long nelse;
+extern unsigned long nend;
 extern char *user_input;
 
 // TokenKind
@@ -12,8 +15,12 @@ typedef enum {
     TK_RESERVED, // 記号
     TK_IDENT,    // 識別子
     TK_NUM,      // 整数
-    TK_EOF,      // 入力の終わりを表すトークン
     TK_RETURN,   // return
+    TK_IF,       // if
+    TK_ELSE,     // else
+    TK_WHILE,    // while
+    TK_FOR,      // for
+    TK_EOF,      // 入力の終わりを表すトークン
 } TokenKind;
 
 // Token
@@ -59,6 +66,9 @@ typedef enum {
     ND_LESS,    // <
     ND_LEQ,     // <=
     ND_RETURN,  // return
+    ND_IF,      // if
+    ND_WHILE,   // while
+    ND_FOR,     // for
 } NodeKind;
 
 // Node
@@ -67,6 +77,8 @@ struct Node {
     NodeKind kind; // ノードの型
     Node *lhs;     // left hand side
     Node *rhs;     // right hand side
+    Node *cond;    // 制御文に使用
+    Node *body;    // kindがND_FORの場合に使用
     int val;       // kindがND_NUMの場合の値
     int offset;    // kindがND_LVARの場合のみ使用
 };

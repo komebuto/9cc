@@ -71,6 +71,42 @@ int consume_return() {
     }
 }
 
+int consume_if() {
+    if (token->kind != TK_IF || token->len != 2) {
+        return 0;
+    } else {
+        token = token->next;
+        return 1;
+    }
+}
+
+int consume_else() {
+    if (token->kind != TK_ELSE || token->len != 4) {
+        return 0;
+    } else {
+        token = token->next;
+        return 1;
+    }
+}
+
+int consume_while() {
+    if (token->kind != TK_WHILE || token->len != 5) {
+        return 0;
+    } else {
+        token = token->next;
+        return 1;
+    }
+}
+
+int consume_for() {
+    if (token->kind != TK_FOR || token->len != 3) {
+        return 0;
+    } else {
+        token = token->next;
+        return 1;
+    }
+}
+
 // 次のトークンが入力の終わりである時trueを返す
 bool at_eof() {
     return token->kind == TK_EOF;
@@ -208,18 +244,64 @@ Node *expr() {
     return assign();
 }
 
-// stmt = expr ";" | "return" expr ";"
+// stmt = expr ";" 
+//      | "return" expr ";"
+//      | "if" "(" expr ")" stmt ("else" stmt)?
+//      | "while" "(" expr ")" stmt
+//      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
 Node *stmt() {
     Node *node;
     if (consume_return()) {
         node = calloc(1, sizeof(Node));
         node->kind = ND_RETURN;
         node->lhs = expr();
+        expect(";");
+        return node;
+    } else if (consume_if()) {
+        // if (cond) lhs else rhs
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_IF;
+        expect("(");
+        node->cond = expr(); 
+        expect(")");
+        node->lhs = stmt();
+        if (consume_else()) {
+            node->rhs = stmt();
+        }
+        return node;
+    } else if (consume_while()) {
+        // while (cond) lhs
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_WHILE;
+        expect("(");
+        node->cond = expr();
+        expect(")");
+        node->lhs = stmt();
+        return node;
+    } else if (consume_for()) {
+        // for (lhs; cond; rhs) body
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_FOR;
+        expect("(");
+        if (!consume(";")) {
+            node->lhs = expr();
+            expect(";");
+        }
+        if (!consume(";")) {
+            node->cond = expr();
+            expect(";");
+        }
+        if (!consume(")")) {
+            node->rhs = expr();
+            expect(")");
+        }
+        node->body = stmt();
+        return node;
     } else {
         node = expr();
+        expect(";");
+        return node;
     }
-    expect(";");
-    return node;
 }
 
 // program = stmt*

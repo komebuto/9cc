@@ -55,6 +55,34 @@ void tokenize(char *p) {
 			continue;
 		}
 
+		// if
+		if (!strncmp(p, "if", 2) && !is_alnum(p[2])) {
+			cur = new_token(TK_IF, cur, "if", 2);
+			p += 2;
+			continue;
+		}
+
+		// else
+		if (!strncmp(p, "else", 4) && !is_alnum(p[4])) {
+			cur = new_token(TK_ELSE, cur, "else", 4);
+			p += 4;
+			continue;
+		}
+
+		// while
+		if (!strncmp(p, "while", 5) && !is_alnum(p[5])) {
+			cur = new_token(TK_WHILE, cur, "while", 5);
+			p += 5;
+			continue;
+		}
+
+		// for
+		if (!strncmp(p, "for", 3) && !is_alnum(p[3])) {
+			cur = new_token(TK_FOR, cur, "for", 3);
+			p += 3;
+			continue;
+		}
+
 		// ２文字の記号
 		if (!strncmp(p, "==", 2) ||
 	    	!strncmp(p, "!=", 2) ||

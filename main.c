@@ -1,5 +1,8 @@
 #include "9cc.h"
 
+unsigned long nbegin;
+unsigned long nelse;
+unsigned long nend;
 char *user_input;
 Token *token;
 LVar *locals;
@@ -11,12 +14,17 @@ int main(int argc, char **argv){
 	return 1;
     }
 
+    nbegin = 0;
+    nelse = 0;
+    nend = 0;
+    locals = calloc(1, sizeof(LVar));  
+    
     // 入力プログラム
     user_input = argv[1];
+    
     // トークナイズ => Token *token
     tokenize(user_input);
 
-    locals = calloc(1, sizeof(LVar));  
     // パース => Node *code[100]
     program();
     
