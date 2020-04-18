@@ -21,13 +21,13 @@ int main(int argc, char **argv){
     
     // 入力プログラム
     user_input = argv[1];
-    
+
     // トークナイズ => Token *token
     tokenize(user_input);
 
     // パース => Node *code[100]
     program();
-    
+
     // アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
     printf(".global main\n");

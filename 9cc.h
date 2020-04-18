@@ -69,18 +69,20 @@ typedef enum {
     ND_IF,      // if
     ND_WHILE,   // while
     ND_FOR,     // for
+    ND_BLOCK,   // { ... }
 } NodeKind;
 
 // Node
 typedef struct Node Node;
 struct Node {
-    NodeKind kind; // ノードの型
-    Node *lhs;     // left hand side
-    Node *rhs;     // right hand side
-    Node *cond;    // 制御文に使用
-    Node *body;    // kindがND_FORの場合に使用
-    int val;       // kindがND_NUMの場合の値
-    int offset;    // kindがND_LVARの場合のみ使用
+    NodeKind kind;      // ノードの型
+    Node *lhs;          // left hand side
+    Node *rhs;          // right hand side
+    Node *cond;         // 制御文に使用
+    Node *body;         // kindがND_FORの場合に使用
+    Node *stmts[100];   // kindがND_BLOCKの場合に使用
+    int val;            // kindがND_NUMの場合の値
+    int offset;         // kindがND_LVARの場合のみ使用
 };
 
 // エラーを報告する関数

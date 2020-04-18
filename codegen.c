@@ -118,7 +118,7 @@ void gen(Node *node) {
 			gen(node->lhs);
 			printf("    jmp .Lbegin%lu\n", nbegin_tmp);
 			printf(".Lend%lu:\n", nend_tmp);
-			printf("    push 0\n"); // while 内のstmtが評価されなかった場合
+			printf("    push 0\n"); // while 内のstmtが評価されなかった場合 (while(0))
 									// この後main関数内でpopされてしまう分を入れておく.
 			return;
 		case ND_FOR:
@@ -143,7 +143,17 @@ void gen(Node *node) {
 			}
 			printf("    jmp .Lbegin%lu\n", nbegin_tmp);
 			printf(".Lend%lu:\n", nend_tmp);
-			return;		
+			return;
+		case ND_BLOCK:
+			for (int i = 0; node->stmts[i]; i++) {
+				gen(node->stmts[i]);
+				// 各ステートメントで評価値がスタックに一つ残っている
+				// ブロック内最後のステートメント以外の値はpopしておく
+				if (!node->stmts[i+1]) {
+					printf("    pop rax\n");
+				}
+			}	
+			return;
 	}
 
     gen(node->lhs);

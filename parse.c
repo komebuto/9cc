@@ -249,6 +249,7 @@ Node *expr() {
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+//      | "{" stmt* "}"
 Node *stmt() {
     Node *node;
     if (consume_return()) {
@@ -296,6 +297,15 @@ Node *stmt() {
             expect(")");
         }
         node->body = stmt();
+        return node;
+    } else if (consume("{")) {
+        node = calloc(1, sizeof(Node));
+        int i = 0;
+        while(!consume("}")){
+            node->stmts[i++] = stmt();
+        }
+        node->stmts[i] = 0;
+        node->kind = ND_BLOCK;
         return node;
     } else {
         node = expr();

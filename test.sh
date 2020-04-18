@@ -82,5 +82,25 @@ while(1)
     return n+1;
 return n;
 """
+assert 5 """
+n = 1;
+while (n <= 10) {
+    if (n == 5) {
+        return n;
+    }
+    n = n+1;
+}
+return n;
+"""
+assert 10 """
+n = 1;
+while (n < 10) {
+    if (n == 20) {
+        return n;
+    }
+    n = n+1;
+}
+return n;
+"""
 
 echo OK
