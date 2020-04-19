@@ -15,7 +15,53 @@ assert() {
 	    exit 1
     fi
 }
-
+assert 44 """
+a=1;
+b=2;
+c=3;
+d=4;
+e=5;
+f=6;
+g=mpmpm(a,b,c,d,e,f);
+return g;
+"""
+assert 11 """
+a=1; b=2; c=3; d=2; e=3;
+f = mpmp(a,b,c,d,e);
+return f;
+"""
+assert 14 """
+x = 1;
+y = 2;
+z = 3;
+u = 4;
+w = mpm(x, y, z, u);
+return w;
+"""
+assert 14 """
+x = 1;
+y = 2;
+z = 3;
+return mpm(x, y, z, 4);
+"""
+assert 5 """
+a = 1; b=2; c=3;
+d = mp(a, b, c);
+return d;
+"""
+assert 5 """
+return u = mp(1, 2, 3);
+"""
+assert 3 """
+x = 1;
+y = 2;
+z = p(x, y);
+return z;
+"""
+assert 2 """
+x = 1;
+return twice(x);
+"""
 assert 0 "0;"
 assert 1 """
 1 ==1;
@@ -108,6 +154,7 @@ foo();
 return foo;
 """
 assert 1 """
+foo = 0;
 foo = foo();
 return foo;
 """

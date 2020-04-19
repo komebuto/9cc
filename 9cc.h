@@ -10,6 +10,7 @@ extern unsigned long nelse;
 extern unsigned long nend;
 extern unsigned long nrsp;
 extern char *user_input;
+extern char *reg_arg[6];    // 関数の引数用のレジスタ名
 
 // TokenKind
 typedef enum {
@@ -82,11 +83,11 @@ struct Node {
     Node *rhs;          // right hand side
     Node *cond;         // 制御文に使用
     Node *body;         // kindがND_FORの場合に使用
-    Node *stmts[100];   // kindがND_BLOCKの場合に使用
-    int val;            // kindがND_NUMの場合の値
-    int offset;         // kindがND_LVARの場合のみ使用
-    char *name;         // kindがND_FUNCの場合のみ使用
-    int len;            // kindがND_FUNCの場合のみ使用
+    Node *stmts[100];   // ND_BLOCK
+    int val;            // ND_NUM
+    int offset;         // ND_LVAR
+    char *name;         // ND_FUNC 関数名
+    Node *fargs[6];      // ND_FUNC 関数の引数 (最大引数6個)
 };
 
 // エラーを報告する関数

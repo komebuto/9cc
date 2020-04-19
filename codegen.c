@@ -4,12 +4,17 @@ unsigned long nbegin;
 unsigned long nelse;
 unsigned long nend;
 unsigned long nrsp;
+char *reg_arg[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 
 // レジスタ
 // RAX: 関数の返り値
 // AL:  RAXの下位 8 bits
 // RDI: 関数の第一引数
 // RSI: 関数の第二引数
+// RDX: 関数の第三引数
+// RCX: 関数の第四引数
+// R8:  関数の第五引数
+// R9:  関数の第六引数
 // RSP: スタックポインタ（レジスタによるスタックのエミュレート）
 // RBP: ベースレジスタ（現在の関数フレームの開始位置を常にさしているレジスタ）
 
@@ -53,6 +58,7 @@ void gen(Node *node) {
 	unsigned long nbegin_tmp;
 	unsigned long nelse_tmp;
 	unsigned long nend_tmp;
+	int i;
 
 	if (node->kind == ND_RETURN) {
 		// "return" rhs
@@ -75,17 +81,26 @@ void gen(Node *node) {
 			printf("    push rax\n");			// ロードされた値をpush
 			return;
 		case ND_FUNC:
-			// RSPが16の倍数であることを確認
-			printf("    mov rdi, 16\n");	  // 割る数 RDI = 16
-			printf("    mov rax, rsp\n"); // RAX = RSP 
-			printf("    cqo\n");		  // (RDX RAX) = (0 RAX)
-			printf("    idiv rdi\n");      // (0 RAX)÷RDI = RAX ... RDX
-			printf("    cmp rdx, 0\n");   // 余り(RDX) == 0
-			printf("    je .Lrsp%lu\n", nrsp);
-			printf("    sub rsp, 8\n");     // RSPが16の倍数でない時
-			printf(".Lrsp%lu:\n", nrsp++);
+			for (i=0; i<6 && node->fargs[i]; i++){
+				// 引数の評価
+				gen(node->fargs[i]);
+				// 引数を担当レジスタに設定
+				printf("    pop %s\n", reg_arg[i]);
+			}
+			// RSPを16の倍数にする 
+			printf("    mov r10, rdx\n");	  // 引数RDXを避難
+			printf("    mov r11, 10\n");	  // 割る数 R11 = 16
+			printf("    mov rax, rsp\n");     // RAX = RSP 
+			printf("    cqo\n");		      // (RDX RAX) = (0 RAX)
+			printf("    idiv r11\n");         // (0 RAX)÷RDI = RAX ... RDX
+			printf("    sub rsp, rdx\n");     // 余りをrspから引いて16の倍数とする
+			printf("    push rdx\n");         // 余りをストック
+			printf("    mov rdx, r10\n");     // 避難した第三引数RDXを戻す
 			printf("    call %s\n", node->name); // call func()
-			printf("    push rax\n");       // 関数の戻り値をストック
+			// call前に引いた分戻す
+			printf("    pop r10\n");
+			printf("    add rsp, r10\n");      
+			printf("    push rax\n");         // 関数の戻り値をストック
 			return;
 		case ND_ASSIGN:
 			gen_lval(node->lhs);  // 左辺の変数のアドレスをpush

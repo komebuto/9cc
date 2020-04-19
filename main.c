@@ -18,7 +18,6 @@ int main(int argc, char **argv){
 
     // トークナイズ => Token *token
     tokenize(user_input);
-    
     // パース => Node *code[100]
     program();
 

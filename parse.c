@@ -22,7 +22,7 @@ void expect(char *op) {
     if (token->kind != TK_RESERVED ||
     strlen(op) != token->len ||
 	memcmp(token->str, op, token->len))
-	    error_at(token->str, "'%c'ではありません", op);
+	    error_at(token->str, "'%c'ではありません", *op);
     else 
 	    token = token->next;
 }
@@ -134,6 +134,8 @@ Node *new_node_num(int val) {
 //         | ident [ "(" { assign ("," assign) }? ")" ]?  変数または関数
 //         | num
 Node *primary() {
+    int i;
+
     if (consume("(")) {
 	    Node *node = expr();
         expect(")");
@@ -149,7 +151,16 @@ Node *primary() {
                 node->name = calloc(tok->len+1, sizeof(char));
                 strncpy(node->name, tok->str, tok->len);
                 node->name[tok->len] = '\0';
-                expect(")");
+                if (!consume(")")) {
+                    // 引数あり
+                    i = 0;
+                    node->fargs[i++] = assign();
+                    while (!consume(")") && i<6) {
+                        expect(",");
+                        node->fargs[i++] = assign();
+                    }
+                }
+                return node;
             } else {
                 // 変数
                 node->kind = ND_LVAR;
@@ -167,8 +178,8 @@ Node *primary() {
                     locals = lvar;
                     node->offset = lvar->offset;
                 }
+                return node;
             }
-            return node;
         }
         return new_node_num(expect_number());
     }
