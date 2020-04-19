@@ -102,8 +102,14 @@ while (n < 10) {
 }
 return n;
 """
-assert 0 """
+assert 1 """
+foo = 1;
 foo();
+return foo;
+"""
+assert 1 """
+foo = foo();
+return foo;
 """
 
 echo OK

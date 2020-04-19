@@ -8,6 +8,7 @@
 extern unsigned long nbegin;
 extern unsigned long nelse;
 extern unsigned long nend;
+extern unsigned long nrsp;
 extern char *user_input;
 
 // TokenKind
@@ -46,17 +47,6 @@ struct LVar {
 };
 
 extern LVar *locals;
-
-// Function
-typedef struct Func Func;
-struct Func {
-    Func *next;
-    char *name;
-    int len;
-    int offset;
-};
-
-extern Func *functions;
 
 // 新しいトークンを作る関数
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
@@ -130,6 +120,3 @@ void gen(Node *node);
 
 // argv[1]に与えられたコードをコンパイル
 int main(int argc, char **argv);
-
-// テストのための関数
-int *foo(void);

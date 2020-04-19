@@ -3,6 +3,7 @@
 unsigned long nbegin;
 unsigned long nelse;
 unsigned long nend;
+unsigned long nrsp;
 
 // レジスタ
 // RAX: 関数の返り値
@@ -21,12 +22,12 @@ unsigned long nend;
 // imul (1), (2): (1) <= (1) * (2)
 // cqo     : (RDX RAX) <= (0 RAX)
 // idiv (1): RAX(商) ... RDX(余り) <= (RDX RAX)(128 bits) ÷ (1)
+//           (1)はレジスタ. (数字にするとエラー)
 
 // call (fuction): 1. call の次の命令のアドレスをスタックにプッシュ
 //                 2. call の引数として与えられたアドレスにジャンプ
-// ret     :  1. RAXの値を返す
-//			  2. スタックからアドレス(call命令でプッシュした値)を１つポップ
-//            3. そのアドレスにジャンプ
+// ret     :  1. スタックからアドレス(call命令でプッシュした値)を１つポップ
+//            2. そのアドレスにジャンプ
 // push (1): (1)をスタックにpush
 // pop (1) :  スタックから(1)にpop
 
@@ -54,8 +55,9 @@ void gen(Node *node) {
 	unsigned long nend_tmp;
 
 	if (node->kind == ND_RETURN) {
+		// "return" rhs
 		gen(node->lhs);
-		printf("    pop rax\n"); // lhsの計算結果をpop
+		printf("    pop rax\n"); // lhsの計算結果をpop RAXにセット
 		printf("    mov rsp, rbp\n");
 		printf("    pop rbp\n");
 		printf("    ret\n");
@@ -74,8 +76,16 @@ void gen(Node *node) {
 			return;
 		case ND_FUNC:
 			// RSPが16の倍数であることを確認
-			
+			printf("    mov rdi, 16\n");	  // 割る数 RDI = 16
+			printf("    mov rax, rsp\n"); // RAX = RSP 
+			printf("    cqo\n");		  // (RDX RAX) = (0 RAX)
+			printf("    idiv rdi\n");      // (0 RAX)÷RDI = RAX ... RDX
+			printf("    cmp rdx, 0\n");   // 余り(RDX) == 0
+			printf("    je .Lrsp%lu\n", nrsp);
+			printf("    sub rsp, 8\n");     // RSPが16の倍数でない時
+			printf(".Lrsp%lu:\n", nrsp++);
 			printf("    call %s\n", node->name); // call func()
+			printf("    push rax\n");       // 関数の戻り値をストック
 			return;
 		case ND_ASSIGN:
 			gen_lval(node->lhs);  // 左辺の変数のアドレスをpush
