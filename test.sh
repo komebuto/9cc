@@ -16,14 +16,14 @@ assert() {
     fi
 }
 assert 1 """
-main () {
+int main () {
     int x;
     x = 1;
     return x;
 }
 """
 assert 1 """
-main() {
+int main() {
     int x;
     int y;
     x = 1;
@@ -31,64 +31,65 @@ main() {
     return *y;
 }
 """
-#assert 3 """
-#plus(int x,int y){
-#    return x+y;
-#}
-#main() {
-#    int x;
-#    int y;
-#    int z;
-#    x = 1;
-#    y = 2;
-#    z = plus(x, y);
-#    return z;
-#}
-#"""
-#assert 0 """
-#fib(int p, int pp) {
-#    return p + pp;
-#}
-#main() {
-#    int pp;
-#    int p;
-#    int now;
-#    pp = 0;
-#    p = 1;
-#    for (n = 0; n < 20; n = n+1) {
-#        now = fib(p, pp);
-#        print_int(now);
-#        pp = p;
-#        p = now;
-#    }
-#    return 0;
-#}
-#"""
-assert 0 "main(){return 0;}"
+assert 3 """
+int plus(int x,int y){
+    return x+y;
+}
+int main() {
+    int x;
+    int y;
+    int z;
+    x = 1;
+    y = 2;
+    z = plus(x, y);
+    return z;
+}
+"""
+assert 0 """
+int fib(int p, int pp) {
+    return p + pp;
+}
+int main() {
+    int pp;
+    int p;
+    int now;
+    int n;
+    pp = 0;
+    p = 1;
+    for (n = 0; n < 20; n = n+1) {
+        now = fib(p, pp);
+        print_int(now);
+        pp = p;
+        p = now;
+    }
+    return 0;
+}
+"""
+assert 0 "int main(){return 0;}"
 assert 1 """
-main () {
+int main () {
 1 ==1;
 }
 """
 assert 0 """
-main () {
+int main () {
 1!=1;
 }
 """
 assert 1 """
-main () {2>1;}
+int main () {2>1;}
 """
 assert 1 """
-main(){2>=2;}
+int main(){2>=2;}
 """
 assert 0 """
-main(){2<1;}
+int main(){2<1;}
 """
 assert 0 """
-main(){2<=1;}
+int main(){2<=1;}
 """
 assert 5  """
-main(){
+int main(){
     int a1;
     int b_;
     a1 = -12 + (2 - 2 * 3) / 2 + 17;
@@ -97,14 +98,14 @@ main(){
 }
 """
 assert 1 """
-main(){
+int main(){
     int return1;
     return1 = 1;
     return return1;
 }
 """
 assert 1 """
-main(){
+int main(){
     int a;
     a = 1;
     if (a == 0) 
@@ -114,7 +115,7 @@ main(){
 }
 """
 assert 2 """
-main(){
+int main(){
     int a;
     a = 1;
     if (a == 1) 
@@ -124,7 +125,7 @@ main(){
 }
 """
 assert 10 """
-main(){
+int main(){
     int n;
     int a;
     n = 0;
@@ -134,7 +135,7 @@ main(){
 }
 """
 assert 0 """
-main(){
+int main(){
     int n;
     int a;
     n = 0;
@@ -144,7 +145,7 @@ main(){
 }
 """
 assert 1 """
-main(){
+int main(){
     int n;
     n = 1;
     while(0)
@@ -153,7 +154,7 @@ main(){
 }
 """
 assert 2 """
-main(){
+int main(){
     int n;
     n = 1;
     while(1)
@@ -162,7 +163,7 @@ main(){
 }
 """
 assert 5 """
-main(){
+int main(){
     int n;
     n = 1;
     while (n <= 10) {
@@ -175,7 +176,7 @@ main(){
 }
 """
 assert 10 """
-main(){
+int main(){
     int n;
     n = 1;
     while (n < 10) {
@@ -188,7 +189,7 @@ main(){
 }
 """
 assert 1 """
-main(){
+int main(){
     int foo;
     foo = 1;
     foo();
@@ -196,16 +197,16 @@ main(){
 }
 """
 assert 1 """
-main(){
+int main(){
     int foo;
     foo = 0;
     foo = foo();
     return foo;
 }
 """
-assert 1 "main () {return 1;}"
+assert 1 "int main () {return 1;}"
 assert 44 """
-main(){
+int main(){
     int a;int b;int c;int d;int e;int f;int g;
     a=1;b=2;c=3;d=4;e=5;f=6;
     g=mpmpm(a,b,c,d,e,f);
@@ -213,7 +214,7 @@ main(){
 }
 """
 assert 11 """
-main(){
+int main(){
 int a;int b;int c;int d;int e;int f;
 a=1; b=2; c=3; d=2; e=3;
 f = mpmp(a,b,c,d,e);
@@ -221,7 +222,7 @@ return f;
 }
 """
 assert 14 """
-main(){
+int main(){
     int x;int y;int z;int u;int w;
 x = 1;
 y = 2;
@@ -232,7 +233,7 @@ return w;
 }
 """
 assert 14 """
-main(){
+int main(){
     int x;int y;int z;
 x = 1;
 y = 2;
@@ -241,7 +242,7 @@ return mpm(x, y, z, 4);
 }
 """
 assert 5 """
-main(){
+int main(){
     int a; int b; int c; int d;
 a = 1; b=2; c=3;
 d = mp(a, b, c);
@@ -249,10 +250,10 @@ return d;
 }
 """
 assert 5 """
-main(){int u;return u = mp(1, 2, 3);}
+int main(){int u;return u = mp(1, 2, 3);}
 """
 assert 3 """
-main(){
+int main(){
     int x; int y; int z;
 x = 1;
 y = 2;
@@ -261,7 +262,7 @@ return z;
 }
 """
 assert 2 """
-main(){
+int main(){
     int x;
 x = 1;
 return twice(x);

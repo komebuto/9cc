@@ -99,8 +99,8 @@ void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 
 // Tokenを読み進めながら内容を判定するための関数
-bool consume(char *op);
-void expect(char *op);
+bool consume_op(char *op);
+void expect_op(char *op);
 int expect_number();
 bool at_eof();
 
