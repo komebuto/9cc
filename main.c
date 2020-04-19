@@ -24,15 +24,8 @@ int main(int argc, char **argv){
     // アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
     printf(".global main\n");
-    printf("main:\n");
-
-    // プロローグ
-    // 変数26個分の領域を確保する
-    printf("    push rbp\n");       // 呼び出し元の関数のベースポインタをpush
-    printf("    mov rbp, rsp\n");   // そのベースポインタを指すようにRBPを変更
-    printf("    sub rsp, %d\n", locals->offset);   // 変数の数分の領域を確保
     
-    // 先頭の式から順に
+    // 先頭の関数から順に
     // 抽象構文木を下りながらコード生成
     for (int i = 0; code[i]; i++) {
         gen(code[i]);
@@ -42,10 +35,5 @@ int main(int argc, char **argv){
         printf("    pop rax\n");
     }
     
-    // エピローグ
-    // 最後の式の結果がRAXに残っているのでそれが返り値となる
-    printf("    mov rsp, rbp\n");  // 呼び出し元のベースポインタをRSPが指すように変更(popするため)
-    printf("    pop rbp\n");       // 呼び出し元のベースポインタをRBPに代入して, 元に戻る
-    printf("    ret\n");           // 呼び出した関数の返り値(RAX)をret
     return 0;
 }

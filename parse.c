@@ -131,7 +131,7 @@ Node *new_node_num(int val) {
 }
 
 // primary = "(" expr ")" 
-//         | ident [ "(" { assign ("," assign) }? ")" ]?  変数または関数
+//         | ident [ "(" { assign ("," assign)* }? ")" ]?  変数または関数呼び出し
 //         | num
 Node *primary() {
     int i;
@@ -147,7 +147,7 @@ Node *primary() {
             Node *node = calloc(1, sizeof(Node));
             if (consume("(")) {
                 // 関数
-                node->kind = ND_FUNC;
+                node->kind = ND_FUNCALL;
                 node->name = calloc(tok->len+1, sizeof(char));
                 strncpy(node->name, tok->str, tok->len);
                 node->name[tok->len] = '\0';
@@ -336,11 +336,57 @@ Node *stmt() {
     }
 }
 
-// program = stmt*
-// stmt毎にNode *code[100]に格納
+// deffunc = ident "(" [ident ("," ident)* ]? ")" "{" stmt* "}"
+Node *deffunc() {
+    Token *tok = consume_ident();
+    locals = calloc(1, sizeof(LVar)); // 関数毎にローカル変数を持つ
+    Node *node = calloc(1, sizeof(Node));
+    int i = 0;
+    
+    node->kind = ND_FUNCDEF;
+
+    // 関数名文字列
+    node->name = calloc(tok->len+1, sizeof(char));
+    strncpy(node->name, tok->str, tok->len);
+    node->name[tok->len] = '\0';
+
+    expect("(");
+    for (i=0; (tok = consume_ident()) && i<6; i++) {
+        node->fargs[i] = calloc(1, sizeof(Node));
+        node->fargs[i]->kind = ND_LVAR;
+        // 引数をlocal variableとして, RBPからのoffsetを求める
+        LVar *lvar = find_lvar(tok);
+        if (lvar) {
+            error("異なる引数の文字が同じです");
+        } 
+        lvar = calloc(1, sizeof(LVar));
+        lvar->next = locals;
+        lvar->name = tok->str;
+        lvar->len = tok->len;
+        lvar->offset = locals->offset + 8;
+        locals = lvar;
+        node->fargs[i]->offset = lvar->offset;
+        if (!consume(",")) {
+            break;
+        }
+    }
+    expect(")");
+    expect("{");
+    i = 0;
+    while (!consume("}")) {
+        node->stmts[i++] = stmt();
+        if (at_eof()) {
+            expect("}");
+        }
+    }
+    return node;
+}
+
+// program = deffunc*
+// deffunc毎にNode *code[100]に格納
 void program() {
     int i = 0;
     while(!at_eof())
-        code[i++] = stmt();
+        code[i++] = deffunc();
     code[i] = NULL;
 }

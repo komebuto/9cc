@@ -60,27 +60,35 @@ void gen(Node *node) {
 	unsigned long nend_tmp;
 	int i;
 
-	if (node->kind == ND_RETURN) {
-		// "return" rhs
-		gen(node->lhs);
-		printf("    pop rax\n"); // lhsの計算結果をpop RAXにセット
-		printf("    mov rsp, rbp\n");
-		printf("    pop rbp\n");
-		printf("    ret\n");
-		return;
-	}
-    
+	// 関数
 	switch (node->kind) {
-		case ND_NUM:
-			printf("    push %d\n", node->val); // 数字の場合の値をpush
+		case ND_FUNCDEF:
+			// name ( fargs[6] ) { stmts[100] }
+			// プロローグ
+    		// 変数の領域を確保する
+			printf("%s:\n", node->name);  // name
+    		printf("    push rbp\n");       // 呼び出し元の関数のベースポインタをpush
+    		printf("    mov rbp, rsp\n");   // そのベースポインタを指すようにRBPを変更
+			// fargs
+			for (i=0; i<6 && node->fargs[i]; i++) {
+				printf("    mov rsp, rbp\n");
+				printf("    sub rsp, %d\n", node->fargs[i]->offset); // 変数の場所を確保
+				printf("    mov [rsp], %s\n", reg_arg[i]); // そこにレジスタの値を代入
+			}
+			// stmts
+			i = 0;
+			while (node->stmts[i]) {
+				gen(node->stmts[i++]);
+			}
+
+			// エピローグ
+    		// 最後の式の結果がRAXに残っているのでそれが返り値となる
+    		printf("    mov rsp, rbp\n");  // 呼び出し元のベースポインタをRSPが指すように変更(popするため)
+    		printf("    pop rbp\n");       // 呼び出し元のベースポインタをRBPに代入して, 元に戻る
+    		printf("    ret\n");           // 呼び出した関数の返り値(RAX)をret
 			return;
-		case ND_LVAR:							// 与えられた変数を値に置き換える
-			gen_lval(node);						// 変数のアドレスをpush
-			printf("    pop rax\n");			// そのアドレスをraxにpop
-			printf("    mov rax, [rax]\n");		// rax番地の値をraxにロード
-			printf("    push rax\n");			// ロードされた値をpush
-			return;
-		case ND_FUNC:
+
+		case ND_FUNCALL:
 			for (i=0; i<6 && node->fargs[i]; i++){
 				// 引数の評価
 				gen(node->fargs[i]);
@@ -89,7 +97,7 @@ void gen(Node *node) {
 			}
 			// RSPを16の倍数にする 
 			printf("    mov r10, rdx\n");	  // 引数RDXを避難
-			printf("    mov r11, 10\n");	  // 割る数 R11 = 16
+			printf("    mov r11, 16\n");	  // 割る数 R11 = 16
 			printf("    mov rax, rsp\n");     // RAX = RSP 
 			printf("    cqo\n");		      // (RDX RAX) = (0 RAX)
 			printf("    idiv r11\n");         // (0 RAX)÷RDI = RAX ... RDX
@@ -102,10 +110,22 @@ void gen(Node *node) {
 			printf("    add rsp, r10\n");      
 			printf("    push rax\n");         // 関数の戻り値をストック
 			return;
+	}
+    
+	// 末端
+	switch (node->kind) {
+		case ND_NUM:
+			printf("    push %d\n", node->val); // 数字の場合の値をpush
+			return;
+		case ND_LVAR:							// 与えられた変数を値に置き換える
+			gen_lval(node);						// 変数のアドレスをpush
+			printf("    pop rax\n");			// そのアドレスをraxにpop
+			printf("    mov rax, [rax]\n");		// rax番地の値をraxにロード
+			printf("    push rax\n");			// ロードされた値をpush
+			return;
 		case ND_ASSIGN:
 			gen_lval(node->lhs);  // 左辺の変数のアドレスをpush
 			gen(node->rhs);       // 右辺
-
 			printf("    pop rdi\n");  // 代入式の右辺
 			printf("    pop rax\n");  // 代入式の左辺（変数のアドレス）
 			printf("    mov [rax], rdi\n");  // [rax]番地にrdiの値をストア
@@ -113,7 +133,16 @@ void gen(Node *node) {
 			return;
 	}
 
+	// 予約語とブロック
 	switch (node->kind) {
+		case ND_RETURN:
+		// "return" rhs
+			gen(node->lhs);
+			printf("    pop rax\n"); // lhsの計算結果をpop RAXにセット
+			printf("    mov rsp, rbp\n");
+			printf("    pop rbp\n");
+			printf("    ret\n");
+			return;
 		case ND_IF:
 			gen(node->cond);        // 条件式の計算(結果はスタックトップ)
 			printf("    pop rax\n"); 
@@ -186,13 +215,13 @@ void gen(Node *node) {
 			return;
 	}
 
+
+	// 二項演算子
     gen(node->lhs);
     gen(node->rhs);
-    
     // 第一引数をRAXに, 第二引数をRDIにpopして, 計算をして結果をpushする.
     printf("    pop rdi\n");
     printf("    pop rax\n");
-
     switch (node->kind) {
 	case ND_ADD:
 	    printf("    add rax, rdi\n");
@@ -207,7 +236,6 @@ void gen(Node *node) {
 	    printf("    cqo\n");
 	    printf("    idiv rdi\n");
 	    break;
-	
 	case ND_EQ:
 	    printf("    cmp rax, rdi\n");
 	    printf("    sete al\n");	   // ALはRAXの下位8ビットを指す 
@@ -229,7 +257,6 @@ void gen(Node *node) {
 	    printf("    movzb rax, al\n");
 	    break;
     }
-    
     printf("    push rax\n");  // RAXにある計算結果をpush
 	return;
 }

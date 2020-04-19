@@ -72,7 +72,8 @@ typedef enum {
     ND_WHILE,   // while
     ND_FOR,     // for
     ND_BLOCK,   // { ... }
-    ND_FUNC,    // Function
+    ND_FUNCALL,   // Function call
+    ND_FUNCDEF,    // Function define 
 } NodeKind;
 
 // Node
@@ -83,11 +84,11 @@ struct Node {
     Node *rhs;          // right hand side
     Node *cond;         // 制御文に使用
     Node *body;         // kindがND_FORの場合に使用
-    Node *stmts[100];   // ND_BLOCK
+    Node *stmts[100];   // ND_BLOCK, ND_FUNCDEFのbody stmt毎に格納
     int val;            // ND_NUM
     int offset;         // ND_LVAR
-    char *name;         // ND_FUNC 関数名
-    Node *fargs[6];      // ND_FUNC 関数の引数 (最大引数6個)
+    char *name;         // ND_FUNC* 関数名文字列
+    Node *fargs[6];     // ND_FUNC* 関数の引数 (最大引数6個)
 };
 
 // エラーを報告する関数
@@ -106,6 +107,7 @@ Node *new_node_num(int val);
 
 // パーサーで使う関数
 void program(void);
+Node *func(void);
 Node *stmt(void);
 Node *expr(void);
 Node *assign(void);
