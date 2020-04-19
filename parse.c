@@ -186,12 +186,24 @@ Node *primary() {
 }	 
 
 // unary = ("+" | "-")? primary
+//       | ("*" | "&") unary
 // 単項の+, -。 -x は 0-x に変換
 Node *unary() {
     if (consume("+"))
 	    return primary();
     else if (consume("-"))
 	    return new_node(ND_SUB, new_node_num(0), primary());
+    else if (consume("*")) {
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_DEREF;
+        node->lhs = unary();
+        return node;
+    } else if (consume("&")) {
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_ADDR;
+        node->lhs = unary();
+        return node;
+    }
     return primary();
 }   
 

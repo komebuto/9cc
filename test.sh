@@ -15,6 +15,13 @@ assert() {
 	    exit 1
     fi
 }
+assert 1 """
+main() {
+    x = 1;
+    y = &x;
+    return *y;
+}
+"""
 assert 3 """
 plus(x,y){
     return x+y;
@@ -24,6 +31,22 @@ main() {
     y = 2;
     z = plus(x, y);
     return z;
+}
+"""
+assert 0 """
+fib(p, pp) {
+    return p + pp;
+}
+main() {
+    pp = 0;
+    p = 1;
+    for (n = 0; n < 20; n = n+1) {
+        now = fib(p, pp);
+        print_int(now);
+        pp = p;
+        p = now;
+    }
+    return 0;
 }
 """
 assert 0 "main(){return 0;}"

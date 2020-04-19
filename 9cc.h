@@ -74,6 +74,8 @@ typedef enum {
     ND_BLOCK,   // { ... }
     ND_FUNCALL,   // Function call
     ND_FUNCDEF,    // Function define 
+    ND_DEREF,   // * (参照外し)
+    ND_ADDR,    // & (アドレス)
 } NodeKind;
 
 // Node

@@ -60,7 +60,6 @@ void gen(Node *node) {
 	unsigned long nend_tmp;
 	int i;
 
-	// 関数
 	switch (node->kind) {
 		case ND_FUNCDEF:
 			// name ( fargs[6] ) { stmts[100] }
@@ -110,10 +109,6 @@ void gen(Node *node) {
 			printf("    add rsp, r10\n");      
 			printf("    push rax\n");         // 関数の戻り値をストック
 			return;
-	}
-    
-	// 末端
-	switch (node->kind) {
 		case ND_NUM:
 			printf("    push %d\n", node->val); // 数字の場合の値をpush
 			return;
@@ -131,10 +126,6 @@ void gen(Node *node) {
 			printf("    mov [rax], rdi\n");  // [rax]番地にrdiの値をストア
 			printf("    push rdi\n"); // 代入式全体の評価値をpush
 			return;
-	}
-
-	// 予約語とブロック
-	switch (node->kind) {
 		case ND_RETURN:
 		// "return" rhs
 			gen(node->lhs);
@@ -213,8 +204,18 @@ void gen(Node *node) {
 				}
 			}	
 			return;
+		case ND_DEREF:
+			// * lhs
+			gen(node->lhs);
+			printf("    pop rax\n");
+			printf("    mov rax, [rax]\n");
+			printf("    push rax\n");
+			return;
+		case ND_ADDR:
+			// & lhs
+			gen_lval(node->lhs);
+			return;
 	}
-
 
 	// 二項演算子
     gen(node->lhs);
