@@ -41,7 +41,7 @@ unsigned long nend;
 // その変数の番地をスタックにプッシュ
 void gen_lval(Node *node) {
 	if (node->kind != ND_LVAR)
-		error("代入の左辺値が変数ではありません");
+		error("変数ではありません");
 	printf("    mov rax, rbp\n");				// 変数のポインタはベースポインタからの
 	printf("    sub rax, %d\n", node->offset);  // オフセットとして得ている
 	printf("    push rax\n");			        // スタックにプッシュ
@@ -71,6 +71,11 @@ void gen(Node *node) {
 			printf("    pop rax\n");			// そのアドレスをraxにpop
 			printf("    mov rax, [rax]\n");		// rax番地の値をraxにロード
 			printf("    push rax\n");			// ロードされた値をpush
+			return;
+		case ND_FUNC:
+			// RSPが16の倍数であることを確認
+			
+			printf("    call %s\n", node->name); // call func()
 			return;
 		case ND_ASSIGN:
 			gen_lval(node->lhs);  // 左辺の変数のアドレスをpush

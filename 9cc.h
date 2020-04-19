@@ -47,6 +47,17 @@ struct LVar {
 
 extern LVar *locals;
 
+// Function
+typedef struct Func Func;
+struct Func {
+    Func *next;
+    char *name;
+    int len;
+    int offset;
+};
+
+extern Func *functions;
+
 // 新しいトークンを作る関数
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 // user_inputをトークナイズして先頭のトークンをtokenに代入
@@ -70,6 +81,7 @@ typedef enum {
     ND_WHILE,   // while
     ND_FOR,     // for
     ND_BLOCK,   // { ... }
+    ND_FUNC,    // Function
 } NodeKind;
 
 // Node
@@ -83,6 +95,8 @@ struct Node {
     Node *stmts[100];   // kindがND_BLOCKの場合に使用
     int val;            // kindがND_NUMの場合の値
     int offset;         // kindがND_LVARの場合のみ使用
+    char *name;         // kindがND_FUNCの場合のみ使用
+    int len;            // kindがND_FUNCの場合のみ使用
 };
 
 // エラーを報告する関数
@@ -116,3 +130,6 @@ void gen(Node *node);
 
 // argv[1]に与えられたコードをコンパイル
 int main(int argc, char **argv);
+
+// テストのための関数
+int *foo(void);

@@ -6,6 +6,7 @@ unsigned long nend;
 char *user_input;
 Token *token;
 LVar *locals;
+Func *functions;
 Node *code[100];
 
 int main(int argc, char **argv){
@@ -13,18 +14,19 @@ int main(int argc, char **argv){
 	    error("引数の個数が正しくありません");
 	return 1;
     }
-
+    
     nbegin = 0;
     nelse = 0;
     nend = 0;
     locals = calloc(1, sizeof(LVar));  
+    functions = calloc(1, sizeof(Func));
     
     // 入力プログラム
     user_input = argv[1];
 
     // トークナイズ => Token *token
     tokenize(user_input);
-
+    
     // パース => Node *code[100]
     program();
 

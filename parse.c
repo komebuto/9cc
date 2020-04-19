@@ -1,6 +1,7 @@
 #include "9cc.h"
 
 LVar *locals;
+Func *functions;
 Node *code[100];
 
 // 次のトークンが期待している記号の時には、トークンを１つ読み進めて
@@ -56,6 +57,16 @@ LVar *find_lvar(Token *tok) {
     for (LVar *var = locals; var; var = var->next){
         if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)){
             return var;
+        }
+    }
+    return NULL;
+}
+
+// 関数を名前で検索する。見つからなかった場合はNULLを返す。
+Func *find_func(Token *tok) {
+    for (Func *func = functions; func; func = func->next){
+        if (func->len == tok->len && !memcmp(tok->str, func->name, func->len)){
+            return func;
         }
     }
     return NULL;
@@ -130,7 +141,7 @@ Node *new_node_num(int val) {
     return node;
 }
 
-// primary = num | ident | "(" expr ")"
+// primary = num | ident ("(" ")")? | "(" expr ")"
 Node *primary() {
     if (consume("(")) {
 	    Node *node = expr();
@@ -139,10 +150,9 @@ Node *primary() {
     } else {
         Token *tok = consume_ident();
         if (tok) {
-            // トークンが識別子であるときは, ノードの型をND_LVARとして
+            // 変数名or関数名
             Node *node = calloc(1, sizeof(Node));
-            node->kind = ND_LVAR;
-
+            
             // その変数のRBPからのオフセットの情報を得る
             LVar *lvar = find_lvar(tok);
             if (lvar) {
@@ -156,6 +166,15 @@ Node *primary() {
                 lvar->offset = locals->offset + 8;
                 locals = lvar;
                 node->offset = lvar->offset;
+            }
+            if (consume("(")) {
+                node->kind = ND_FUNC;
+                node->name = calloc(tok->len+1, sizeof(char));
+                strncpy(node->name, tok->str, tok->len);
+                node->name[tok->len] = '\0';
+                expect(")");
+            } else {
+                node->kind = ND_LVAR;
             }
             return node;
         }

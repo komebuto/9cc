@@ -1,10 +1,10 @@
 #!/bin/bash
-assert(){
+assert() {
     expected="$1"
     input="$2"
 
     ./9cc "$input" > tmp.s
-    gcc -o tmp tmp.s
+    gcc -o tmp tmp.s function.o
     ./tmp
     actual="$?"
 
@@ -101,6 +101,9 @@ while (n < 10) {
     n = n+1;
 }
 return n;
+"""
+assert 0 """
+foo();
 """
 
 echo OK
