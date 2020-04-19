@@ -83,6 +83,12 @@ void tokenize(char *p) {
 			continue;
 		}
 
+		if (!strncmp(p, "int", 3) && !is_alnum(p[3])) {
+			cur = new_token(TK_INT, cur, "int", 3);
+			p += 3;
+			continue;
+		}
+
 		// ２文字の記号
 		if (!strncmp(p, "==", 2) ||
 	    	!strncmp(p, "!=", 2) ||

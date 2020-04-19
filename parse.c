@@ -51,14 +51,28 @@ Token *consume_ident() {
     }
 }
 
-// 変数を名前で検索する。見つからなかった場合はNULLを返す。
+// 変数を名前で検索する。見つからなかった場合はerrorを返す。
 LVar *find_lvar(Token *tok) {
     for (LVar *var = locals; var; var = var->next){
         if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)){
             return var;
         }
     }
-    return NULL;
+    char *undef_var = calloc(tok->len+1, sizeof(char));
+    strncpy(undef_var, tok->str, tok->len);
+    undef_var[tok->len] = '\0';
+    error("%s: 定義されていない変数です.", undef_var);
+}
+
+// 宣言されたローカル変数のオフセットを決める offsetはグローバル変数
+LVar *set_lvar(Token *tok) {
+    LVar *lvar = calloc(1, sizeof(LVar));
+    lvar->next = locals;
+    lvar->name = tok->str;
+    lvar->len = tok->len;
+    lvar->offset = locals->offset + 8;
+    locals = lvar;
+    return lvar;
 }
 
 // 
@@ -107,6 +121,15 @@ int consume_for() {
     }
 }
 
+int consume_int() {
+    if (token->kind != TK_INT || token->len != 3) {
+        return 0;
+    } else {
+        token = token->next;
+        return 1;
+    }
+}
+
 // 次のトークンが入力の終わりである時trueを返す
 bool at_eof() {
     return token->kind == TK_EOF;
@@ -131,23 +154,41 @@ Node *new_node_num(int val) {
 }
 
 // primary = "(" expr ")" 
-//         | ident [ "(" { assign ("," assign)* }? ")" ]?  変数または関数呼び出し
+//         | "int" ident  変数名 定義
+//         | ident [ "(" { assign ("," assign)* }? ")" ]? 変数or関数呼び出し
 //         | num
 Node *primary() {
+    Token *tok;
+    Node *node;
+    LVar *lvar;
     int i;
-
     if (consume("(")) {
-	    Node *node = expr();
+    // "(" expr ")"
+	    node = expr();
         expect(")");
 	    return node;
     } else {
-        Token *tok = consume_ident();
-        if (tok) {
-            // 変数or関数
-            Node *node = calloc(1, sizeof(Node));
-            if (consume("(")) {
-                // 関数
+        node = calloc(1, sizeof(Node));
+        if (consume_int()) {
+            // 変数の宣言
+            tok = consume_ident();
+            if (!tok) error("宣言の後が識別子として不正です");
+            lvar = set_lvar(tok);
+            node->kind = ND_LVAR;
+            node->offset = lvar->offset;
+            return node;
+        } else if (tok = consume_ident()) {
+            // 変数or関数呼び出し
+            if (!consume("(")) {
+                // 宣言無しの変数
+                lvar = find_lvar(tok); // 宣言済みかの確認
+                node->kind = ND_LVAR;
+                node->offset = lvar->offset;
+                return node;
+            } else {
+                // 関数の呼び出し
                 node->kind = ND_FUNCALL;
+                // 関数名の文字列
                 node->name = calloc(tok->len+1, sizeof(char));
                 strncpy(node->name, tok->str, tok->len);
                 node->name[tok->len] = '\0';
@@ -161,27 +202,11 @@ Node *primary() {
                     }
                 }
                 return node;
-            } else {
-                // 変数
-                node->kind = ND_LVAR;
-                // その変数のRBPからのオフセットの情報を得る
-                LVar *lvar = find_lvar(tok);
-                if (lvar) {
-                    node->offset = lvar->offset;
-                } else {
-                    // 同時にLVar *localsの連結リストを作成
-                    lvar = calloc(1, sizeof(LVar));
-                    lvar->next = locals;
-                    lvar->name = tok->str;
-                    lvar->len = tok->len;
-                    lvar->offset = locals->offset + 8;
-                    locals = lvar;
-                    node->offset = lvar->offset;
-                }
-                return node;
             }
+        } else {
+            // 数字
+            return new_node_num(expect_number());
         }
-        return new_node_num(expect_number());
     }
 }	 
 
