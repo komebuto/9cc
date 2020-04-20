@@ -79,15 +79,27 @@ LVar *find_lvar(Token *tok) {
     error("%s: 定義されていない変数です.", undef_var);
 }
 
-// 宣言されたローカル変数のオフセットを決める offsetはグローバル変数
+// 宣言されたローカル変数のオフセットを決める localsはグローバル変数
 LVar *set_lvar(Token *tok, Type *type) {
     LVar *lvar = calloc(1, sizeof(LVar));
     lvar->next = locals;
     lvar->name = tok->str;
     lvar->len = tok->len;
-    lvar->offset = locals->offset + 8;
     lvar->type = type;
+    lvar->offset = locals->offset;
     locals = lvar;
+    if (type->kind == ARRAY) {
+        size_t size = type->array_size;
+        if (type->ptr_to->kind == INT) {
+            locals->offset += 4*size;
+        } else if (type->ptr_to->kind == PTR) {
+            locals->offset += 8*size;
+        }
+    } else if (type->kind == INT) {
+        locals->offset += 4;
+    } else if (type->kind == PTR) {
+        locals->offset += 8;
+    }
     return lvar;
 }
 
@@ -96,17 +108,31 @@ bool at_eof() {
     return token->kind == TK_EOF;
 }
 
-Type *define_type() {
-    Type *types, *own_type;
-    types = calloc(1, sizeof(Type));
-    own_type = types;
+// 宣言された変数の型を調べて引数で渡されたNodeのtypeに格納
+void define_type(Node *node) {
+    Token *tok;
+    LVar *lvar;
+    Type *types = calloc(1, sizeof(Type));
+    node->type = types;
     while (consume_op("*")) {
         types->kind = PTR;
         types->ptr_to = calloc(1, sizeof(Type));
         types = types->ptr_to;
-    } 
+    }
     types->kind = INT;
-    return own_type;
+    tok = consume_ident();
+    if (!tok) error("識別子として不正です");
+    if (consume_op("[")) {
+        Type *tmp = calloc(1, sizeof(Type));
+        tmp->kind = ARRAY;
+        tmp->ptr_to = node->type;
+        tmp->array_size = expect_number();
+        node->type = tmp;
+        expect_op("]");
+    }
+    lvar = set_lvar(tok, node->type);
+    node->offset = lvar->offset;
+    node->kind = ND_LVAR;
 }
 
 // 四則演算時の変数の型の引継ぎ
@@ -143,7 +169,7 @@ Node *new_node_num(int val) {
 }
 
 // primary = "(" expr ")" 
-//         | "int" ("*")* ident  変数名 定義
+//         | "int" ("*")* ident ("[" num "]")? 変数名 定義
 //         | ident [ "(" { assign ("," assign)* }? ")" ]? 変数or関数呼び出し
 //         | num
 Node *primary() {
@@ -160,12 +186,7 @@ Node *primary() {
         node = calloc(1, sizeof(Node));
         if (consume(TK_INT)) {
             // 変数の宣言
-            node->type = define_type();
-            tok = consume_ident();
-            if (!tok) error("宣言の後が識別子として不正です");
-            lvar = set_lvar(tok, node->type);
-            node->kind = ND_LVAR;
-            node->offset = lvar->offset;
+            define_type(node);
             return node;
         } else if (tok = consume_ident()) {
             // 変数or関数呼び出し
@@ -423,12 +444,7 @@ Node *deffunc() {
     for (i=0; consume(TK_INT) && i<6; i++) {
         node->fargs[i] = calloc(1, sizeof(Node));
         node->fargs[i]->kind = ND_LVAR;
-        node->fargs[i]->type = define_type();
-        tok = consume_ident();
-        if (!tok) error("変数名が不正です");
-        // 引数をlocal variableとして, RBPからのoffsetを求める
-        LVar *lvar = set_lvar(tok, node->fargs[i]->type);
-        node->fargs[i]->offset = lvar->offset;
+        define_type(node->fargs[i]);
         if (!consume_op(",")) {
             break;
         } 

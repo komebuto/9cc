@@ -17,6 +17,14 @@ assert() {
 }
 assert 1 """
 int main() {
+    int a[10];
+    int b;
+    b = 1;
+    return b;
+}
+"""
+assert 1 """
+int main() {
     int *p; int *q;
     int x; int y;
     x = 0; y = 1;
@@ -87,10 +95,19 @@ int main () {
 assert 1 """
 int main() {
     int x;
-    int y;
+    int *y;
     x = 1;
     y = &x;
     return *y;
+}
+"""
+assert 3 """
+int main() {
+    int x;
+    int y;
+    x = 3;
+    y = 3;
+    return x;
 }
 """
 assert 3 """

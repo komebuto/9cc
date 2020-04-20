@@ -4,7 +4,18 @@ unsigned long nbegin;
 unsigned long nelse;
 unsigned long nend;
 unsigned long nrsp;
-char *reg_arg[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+char *reg_arg[6] = {"di", "si", "dx", "cx", "8", "9"};
+
+// 変数に値を代入する際変数の値
+char prefix(Node *node) {
+	TypeKind ty = node->type->kind;
+	if (ty == PTR || ty == ARRAY) {
+		return 'r';
+	} else if (ty == INT) {
+		return 'e';
+	}
+}
+char pre;
 
 // レジスタ
 // RAX: 関数の返り値
@@ -43,7 +54,7 @@ char *reg_arg[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 // je .L[a~Z]XXX: cmpの結果等しければ, .L[a~Z]XXX: までジャンプ (XXXは通し番号)
 // jmp .L[a~Z]XXX: .L[a~Z]XXX: までジャンプ (XXXは通し番号)
 
-// int変数のアドレスの計算 スタックにpush
+// 変数のアドレスの計算 スタックにpush
 void gen_lval(Node *node) {
 	if (node->kind == ND_LVAR) {
 		printf("    mov rax, rbp\n");				// 変数のポインタはベースポインタからの
@@ -64,9 +75,6 @@ void gen(Node *node) {
 	unsigned long nend_tmp;
 	int i;
 
-	Type *test;
-	TypeKind testkind;
-
 	switch (node->kind) {
 		case ND_FUNCDEF:
 			// name ( fargs[6] ) { stmts[100] }
@@ -79,7 +87,8 @@ void gen(Node *node) {
 			for (i=0; i<6 && node->fargs[i]; i++) {
 				printf("    mov rsp, rbp\n");
 				printf("    sub rsp, %d\n", node->fargs[i]->offset); // 変数の場所を確保
-				printf("    mov [rsp], %s\n", reg_arg[i]); // そこにレジスタの値を代入
+				printf("    mov [rsp], %c%s\n", 
+					   prefix(node->fargs[i]), reg_arg[i]); // そこにレジスタの値を代入
 			}
 			// stmts
 			i = 0;
@@ -99,7 +108,7 @@ void gen(Node *node) {
 				// 引数の評価
 				gen(node->fargs[i]);
 				// 引数を担当レジスタに設定
-				printf("    pop %s\n", reg_arg[i]);
+				printf("    pop r%s\n", reg_arg[i]);
 			}
 			// RSPを16の倍数にする 
 			printf("    mov r10, rdx\n");	  // 引数RDXを避難
@@ -119,19 +128,19 @@ void gen(Node *node) {
 		case ND_NUM:
 			printf("    push %d\n", node->val); // 数字の場合の値をpush
 			return;
-		case ND_LVAR:							// 与えられた変数を値に置き換える
-			gen_lval(node);						// 変数のアドレスをpush
-			printf("    pop rax\n");			// そのアドレスをraxにpop			
-			printf("    mov rax, [rax]\n");		// rax番地の値をraxにロード
-			printf("    push rax\n");			// ロードされた値をpush
+		case ND_LVAR:							           // 与えられた変数を値に置き換える
+			gen_lval(node);						           // 変数のアドレスをpush
+			printf("    pop rax\n");			           // そのアドレスをraxにpop			
+			printf("    mov %cax, [rax]\n", prefix(node)); // rax番地の値をraxにロード
+			printf("    push rax\n");		               // ロードされた値をpush
 			return;
 		case ND_ASSIGN:
-			gen_lval(node->lhs);  // 左辺の変数のアドレスをpush
-			gen(node->rhs);       // 右辺
-			printf("    pop rdi\n");  // 代入式の右辺
-			printf("    pop rax\n");  // 代入式の左辺（変数のアドレス）
-			printf("    mov [rax], rdi\n");  // [rax]番地にrdiの値をストア
-			printf("    push rdi\n"); // 代入式全体の評価値をpush
+			gen_lval(node->lhs);                                 // 左辺の変数のアドレスをpush
+			gen(node->rhs);                                      // 右辺
+			printf("    pop rdi\n");                             // 代入式の右辺
+			printf("    pop rax\n");                             // 代入式の左辺（変数のアドレス）
+			printf("    mov [rax], %cdi\n", prefix(node->lhs));  // [rax]番地にrdiの値をストア
+			printf("    push rdi\n");                            // 代入式全体の評価値をpush
 			return;
 		case ND_RETURN:
 		// "return" rhs

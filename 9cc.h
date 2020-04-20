@@ -43,6 +43,7 @@ extern Token *token;
 // Type
 typedef enum {
     INT,
+    ARRAY,
     PTR,
 } TypeKind;
 
@@ -50,6 +51,7 @@ typedef struct Type Type;
 struct Type {
     TypeKind kind;
     Type *ptr_to;  // kindがPTRのときのポインタの先の型
+    size_t array_size;
 };
 
 // Local variable
