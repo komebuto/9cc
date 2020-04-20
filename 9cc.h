@@ -67,6 +67,15 @@ struct LVar {
 
 extern LVar *locals;
 
+typedef struct Func Func;
+struct Func {
+    Func *next;
+    char *name;
+    int len;
+    Type *type;
+};
+extern Func *functions;
+
 // 新しいトークンを作る関数
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 // user_inputをトークナイズして先頭のトークンをtokenに代入

@@ -15,6 +15,28 @@ assert() {
 	    exit 1
     fi
 }
+assert 12 """
+int main() {
+    int a[3];
+    return sizeof(a);
+}
+"""
+assert 16 """
+int main() {
+    int a[2][2];
+    return sizeof(a);
+}
+"""
+assert 3 """
+int main () {
+    int a[2];
+    *a = 1;
+    *(a + 1) = 2;
+    int *p;
+    p = a;
+    return *p + *(p + 1);
+}
+"""
 assert 1 """
 int main() {
     int a[10];

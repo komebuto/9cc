@@ -130,8 +130,10 @@ void gen(Node *node) {
 			return;
 		case ND_LVAR:							           // 与えられた変数を値に置き換える
 			gen_lval(node);						           // 変数のアドレスをpush
-			printf("    pop rax\n");			           // そのアドレスをraxにpop			
-			printf("    mov %cax, [rax]\n", prefix(node)); // rax番地の値をraxにロード
+			printf("    pop rax\n");			           // そのアドレスをraxにpop
+			if (node->type->kind != ARRAY) {			
+				printf("    mov %cax, [rax]\n", prefix(node)); // rax番地の値をraxにロード
+			}
 			printf("    push rax\n");		               // ロードされた値をpush
 			return;
 		case ND_ASSIGN:

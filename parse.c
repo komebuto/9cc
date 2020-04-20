@@ -1,6 +1,7 @@
 #include "9cc.h"
 
 LVar *locals;
+Func *functions;
 Node *code[100];
 
 bool consume(TokenKind TK) {
@@ -108,6 +109,30 @@ LVar *set_lvar(Token *tok, Type *type) {
     return lvar;
 }
 
+// 関数を名前で検索する。見つからなかった場合はerrorを返す(未宣言). (ファイルスコープ)
+Func *find_func(Token *tok) {
+    for (Func *func = functions; func; func = func->next){
+        if (func->len == tok->len && !memcmp(tok->str, func->name, func->len)){
+            return func;
+        }
+    }
+    char *undef_var = calloc(tok->len+1, sizeof(char));
+    strncpy(undef_var, tok->str, tok->len);
+    undef_var[tok->len] = '\0';
+    error("%s: 定義されていない関数です.", undef_var);
+}
+
+// 宣言された関数を連結リストfunctionsに格納
+void set_func(Token *tok, Type *type) {
+    unsigned long n;
+    Func *func = calloc(1, sizeof(LVar));
+    func->next = functions;
+    func->name = tok->str;
+    func->len = tok->len;
+    func->type = type;
+    functions = func;
+}
+
 // 次のトークンが入力の終わりである時trueを返す
 bool at_eof() {
     return token->kind == TK_EOF;
@@ -145,13 +170,21 @@ void define_type(Node *node) {
 Type *cast_type (Node *node1, Node *node2) {
     Type *type1 = node1->type;
     Type *type2 = node2->type;
-    if (type1->kind == PTR && type2->kind == PTR) {
-        error("ポインタ同士の計算です");
-    } else if (type1->kind == PTR) {
+    if (type1->kind == INT) {
+        return type2;
+    } else if (type2->kind == INT) {
         return type1;
     } else {
-        return type2;
+        error("演算の型が不正です");
     }
+}
+
+// type T の配列の場合 type T へのポインタに変換する
+Node *array2ptr(Node *node){
+    if (node->type->kind == ARRAY) {
+        node->type->kind == PTR;
+    }
+    return node;
 }
 
 // 新しいノードを作成する関数
@@ -210,6 +243,8 @@ Node *primary() {
                 node->name = calloc(tok->len+1, sizeof(char));
                 strncpy(node->name, tok->str, tok->len);
                 node->name[tok->len] = '\0';
+                node->type = calloc(1, sizeof(Type));
+                node->type->kind = INT;    ////////// 現在の所int型の関数のみ
                 if (!consume_op(")")) {
                     // 引数あり
                     i = 0;
@@ -235,15 +270,15 @@ Node *primary() {
 // 単項の+, -。 -x は 0-x に変換
 Node *unary() {
     if (consume_op("+")) {
-	    return primary();
+	    return array2ptr(primary());
     } else if (consume_op("-")) {
-	    Node *node = new_node(ND_SUB, new_node_num(0), primary());
+	    Node *node = new_node(ND_SUB, new_node_num(0), array2ptr(primary()));
         node->type = node->lhs->type;
         return node;
     } else if (consume_op("*")) {
         Node *node = calloc(1, sizeof(Node));
         node->kind = ND_DEREF;
-        node->lhs = unary();
+        node->lhs = array2ptr(unary());
         // 参照外し
         node->type = node->lhs->type->ptr_to;
         return node;
@@ -262,8 +297,20 @@ Node *unary() {
             return new_node_num(4);
         } else if (node->type->kind = PTR) {
             return new_node_num(8);
+        } else if (node->type->kind == ARRAY) {
+            Type *tmp = node->type;
+            unsigned long n = 1;
+            while (tmp->kind == ARRAY) {
+                n *= tmp->array_size;
+                tmp = tmp->ptr_to;
+            }
+            if (tmp->kind == INT) {
+                return new_node_num(4*n);
+            } else if (tmp->kind == PTR) {
+                return new_node_num(8*n);
+            }
         }
-    }else {
+    } else {
         return primary();
     }
 }   
@@ -273,10 +320,10 @@ Node *mul() {
     Node *node = unary();
     for (;;) {
 	    if (consume_op("*")) {
-	        node = new_node(ND_MUL, node, unary());
+	        node = new_node(ND_MUL, array2ptr(node), array2ptr(unary()));
             node->type = cast_type(node->rhs, node->lhs);
         } else if (consume_op("/")) {
-	        node = new_node(ND_DIV, node, unary());
+	        node = new_node(ND_DIV, array2ptr(node), array2ptr(unary()));
             node->type = cast_type(node->rhs, node->lhs);
         } else {
 	        return node;
@@ -289,10 +336,10 @@ Node *add() {
     Node *node = mul();
     for (;;) {
 	    if (consume_op("+")) {
-	        node = new_node(ND_ADD, node, mul());
+	        node = new_node(ND_ADD, array2ptr(node), array2ptr(mul()));
             node->type = cast_type(node->rhs, node->lhs);
         } else if (consume_op("-")) {
-	        node = new_node(ND_SUB, node, mul());
+	        node = new_node(ND_SUB, array2ptr(node), array2ptr(mul()));
             node->type = cast_type(node->rhs, node->lhs);
         } else
 	        return node;
@@ -306,19 +353,19 @@ Node *relational() {
     Node *node = add();
     for (;;) {
 	    if (consume_op(">=")) {
-            node = new_node(ND_LEQ, add(), node);
+            node = new_node(ND_LEQ, array2ptr(add()), array2ptr(node));
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else if (consume_op("<=")) {
-	        node = new_node(ND_LEQ, node, add());
+	        node = new_node(ND_LEQ, array2ptr(node), array2ptr(add()));
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else if (consume_op(">")) {
-	        node = new_node(ND_LESS, add(), node);
+	        node = new_node(ND_LESS, array2ptr(add()), array2ptr(node));
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else if (consume_op("<")) {
-	        node = new_node(ND_LESS, node, add());
+	        node = new_node(ND_LESS, array2ptr(node), array2ptr(add()));
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else { 
@@ -332,11 +379,11 @@ Node *equality() {
     Node *node = relational();
     for (;;) {
 	    if (consume_op("==")) {
-	        node = new_node(ND_EQ, node, relational());
+	        node = new_node(ND_EQ, array2ptr(node), array2ptr(relational()));
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else if (consume_op("!=")) {
-	        node = new_node(ND_NEQ, node, relational());
+	        node = new_node(ND_NEQ, array2ptr(node), array2ptr(relational()));
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else {
@@ -350,7 +397,7 @@ Node *assign() {
     Node *node = equality();
     Type *type = node->type;
     if (consume_op("="))
-        node = new_node(ND_ASSIGN, node, assign());
+        node = new_node(ND_ASSIGN, array2ptr(node), array2ptr(assign()));
         node->type = type;
     return node;
 }
@@ -371,7 +418,7 @@ Node *stmt() {
     if (consume(TK_RETURN)) {
         node = calloc(1, sizeof(Node));
         node->kind = ND_RETURN;
-        node->lhs = expr();
+        node->lhs = array2ptr(expr());
         expect_op(";");
         return node;
     } else if (consume(TK_IF)) {
@@ -379,7 +426,7 @@ Node *stmt() {
         node = calloc(1, sizeof(Node));
         node->kind = ND_IF;
         expect_op("(");
-        node->cond = expr(); 
+        node->cond = array2ptr(expr()); 
         expect_op(")");
         node->lhs = stmt();
         if (consume(TK_ELSE)){
@@ -391,7 +438,7 @@ Node *stmt() {
         node = calloc(1, sizeof(Node));
         node->kind = ND_WHILE;
         expect_op("(");
-        node->cond = expr();
+        node->cond = array2ptr(expr());
         expect_op(")");
         node->lhs = stmt();
         return node;
@@ -405,7 +452,7 @@ Node *stmt() {
             expect_op(";");
         }
         if (!consume_op(";")) {
-            node->cond = expr();
+            node->cond = array2ptr(expr());
             expect_op(";");
         }
         if (!consume_op(")")) {
@@ -432,12 +479,16 @@ Node *stmt() {
 
 // deffunc = "int" ident "(" ["int" ident ("," "int" ident)* ]? ")" "{" stmt* "}"
 Node *deffunc() {
+    Node *node = calloc(1, sizeof(Node));
+    node->type = calloc(1, sizeof(Type));
+    locals = calloc(1, sizeof(LVar)); // 関数毎にローカル変数を持つ
+    int i = 0;
+
     expect("int", TK_INT);
+    node->type->kind = INT;
     Token *tok = consume_ident();
     if (!tok) error("関数名が不正です");
-    locals = calloc(1, sizeof(LVar)); // 関数毎にローカル変数を持つ
-    Node *node = calloc(1, sizeof(Node));
-    int i = 0;
+    set_func(tok, node->type);
 
     node->kind = ND_FUNCDEF;
 
