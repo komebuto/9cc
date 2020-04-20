@@ -34,3 +34,8 @@ int print_int(int n) {
     printf("%d\n", n);
     return 0;
 }
+
+void alloc4(int **p, int a, int b, int c, int d) {
+    int ar[4] = {a, b, c, d};
+    *p = ar;
+}

@@ -15,6 +15,15 @@ assert() {
 	    exit 1
     fi
 }
+assert 8 """
+int main () {
+    int *p;
+    alloc4(&p, 1, 2, 4, 8);
+    int *q;
+    q = p + 3;
+    return *q;
+}
+"""
 assert 3 """
 int main () {
     int x;

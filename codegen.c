@@ -64,6 +64,9 @@ void gen(Node *node) {
 	unsigned long nend_tmp;
 	int i;
 
+	Type *test;
+	TypeKind testkind;
+
 	switch (node->kind) {
 		case ND_FUNCDEF:
 			// name ( fargs[6] ) { stmts[100] }
@@ -229,9 +232,28 @@ void gen(Node *node) {
     printf("    pop rax\n");
     switch (node->kind) {
 	case ND_ADD:
-	    printf("    add rax, rdi\n");
+		if (node->lhs->kind == ND_LVAR){
+			// 左辺が変数の場合その型に応じて足すバイト数を調整する
+			if (node->lhs->type->kind == INT) {
+				;
+			} else if (node->lhs->type->ptr_to->kind == INT) {
+				printf("    imul rdi, 4\n");
+			} else if (node->lhs->type->ptr_to->kind == PTR) {
+				printf("    imul rdi, 8\n");
+			}
+		}
+		printf("    add rax, rdi\n");
 	    break;
 	case ND_SUB:
+		if (node->lhs->kind == ND_LVAR){
+			if (node->lhs->type->kind == INT) {
+				;
+			} else if (node->lhs->type->ptr_to->kind == INT) {
+				printf("    imul rdi, 4\n");
+			} else if (node->lhs->type->ptr_to->kind == PTR) {
+				printf("    imul rdi, 8\n");
+			}
+		}
 	    printf("    sub rax, rdi\n");
 	    break;
 	case ND_MUL:

@@ -39,22 +39,6 @@ struct Token {
 // 注目しているToken
 extern Token *token;
 
-// Local variable
-typedef struct LVar LVar;
-struct LVar {
-    LVar *next; // 次の変数かNULL
-    char *name; // 変数の名前
-    int len;    // 名前の長さ
-    int offset; // RBPからのオフセット
-};
-
-extern LVar *locals;
-
-// 新しいトークンを作る関数
-Token *new_token(TokenKind kind, Token *cur, char *str, int len);
-// user_inputをトークナイズして先頭のトークンをtokenに代入
-void tokenize(char *p);
-
 // Type
 typedef enum {
     INT,
@@ -66,6 +50,24 @@ struct Type {
     TypeKind kind;
     Type *ptr_to;  // kindがPTRのときのポインタの先の型
 };
+
+// Local variable
+typedef struct LVar LVar;
+struct LVar {
+    LVar *next; // 次の変数かNULL
+    char *name; // 変数の名前
+    int len;    // 名前の長さ
+    int offset; // RBPからのオフセット
+    Type *type;  // 変数の型
+
+};
+
+extern LVar *locals;
+
+// 新しいトークンを作る関数
+Token *new_token(TokenKind kind, Token *cur, char *str, int len);
+// user_inputをトークナイズして先頭のトークンをtokenに代入
+void tokenize(char *p);
 
 // NodeKind
 typedef enum {

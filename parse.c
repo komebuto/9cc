@@ -73,12 +73,13 @@ LVar *find_lvar(Token *tok) {
 }
 
 // 宣言されたローカル変数のオフセットを決める offsetはグローバル変数
-LVar *set_lvar(Token *tok) {
+LVar *set_lvar(Token *tok, Type *type) {
     LVar *lvar = calloc(1, sizeof(LVar));
     lvar->next = locals;
     lvar->name = tok->str;
     lvar->len = tok->len;
     lvar->offset = locals->offset + 8;
+    lvar->type = type;
     locals = lvar;
     return lvar;
 }
@@ -143,6 +144,19 @@ bool at_eof() {
     return token->kind == TK_EOF;
 }
 
+Type *define_type() {
+    Type *types, *own_type;
+    types = calloc(1, sizeof(Type));
+    own_type = types;
+    while (consume_op("*")) {
+        types->kind = PTR;
+        types->ptr_to = calloc(1, sizeof(Type));
+        types = types->ptr_to;
+    } 
+    types->kind = INT;
+    return own_type;
+}
+
 // 新しいノードを作成する関数
 // ノードが記号の場合
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
@@ -179,20 +193,12 @@ Node *primary() {
         node = calloc(1, sizeof(Node));
         if (consume_int()) {
             // 変数の宣言
-            Type *type = calloc(1, sizeof(Type));
-            Type *own_type = type;
-            while (consume_op("*")) {
-                type->kind = PTR;
-                type->ptr_to = calloc(1, sizeof(Type));
-                type = type->ptr_to;
-            } 
-            type->kind = INT;
+            node->type = define_type();
             tok = consume_ident();
             if (!tok) error("宣言の後が識別子として不正です");
-            lvar = set_lvar(tok);
+            lvar = set_lvar(tok, node->type);
             node->kind = ND_LVAR;
             node->offset = lvar->offset;
-            node->type = own_type;
             return node;
         } else if (tok = consume_ident()) {
             // 変数or関数呼び出し
@@ -201,6 +207,7 @@ Node *primary() {
                 lvar = find_lvar(tok); // 宣言済みかの確認
                 node->kind = ND_LVAR;
                 node->offset = lvar->offset;
+                node->type = lvar->type;
                 return node;
             } else {
                 // 関数の呼び出し
@@ -408,11 +415,13 @@ Node *deffunc() {
 
     expect_op("(");
     for (i=0; consume("int", TK_INT) && i<6; i++) {
-        tok = consume_ident();
         node->fargs[i] = calloc(1, sizeof(Node));
         node->fargs[i]->kind = ND_LVAR;
+        node->fargs[i]->type = define_type();
+        tok = consume_ident();
+        if (!tok) error("変数名が不正です");
         // 引数をlocal variableとして, RBPからのoffsetを求める
-        LVar *lvar = set_lvar(tok);
+        LVar *lvar = set_lvar(tok, node->fargs[i]->type);
         node->fargs[i]->offset = lvar->offset;
         if (!consume_op(",")) {
             break;
