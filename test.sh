@@ -15,6 +15,50 @@ assert() {
 	    exit 1
     fi
 }
+assert 1 """
+int main() {
+    int *p; int *q;
+    int x; int y;
+    x = 0; y = 1;
+    p = &x; q = &y;
+    return *p + *q;
+}
+"""
+assert 4 """
+int main() {
+    int x;
+    return sizeof(x);
+}
+"""
+assert 4 """
+int main() {
+    int x;
+    return sizeof(x+1);
+}
+"""
+assert 8 """
+int main() {
+    int *p;
+    return sizeof(p);
+}
+"""
+assert 8 """
+int main() {
+    int *p;
+    return sizeof(p+1);
+}
+"""
+assert 4 """
+int main() {
+    int *p;
+    return sizeof(*p);
+}
+"""
+assert 4 """
+int main() {
+    return sizeof(sizeof(1));
+}
+"""
 assert 8 """
 int main () {
     int *p;

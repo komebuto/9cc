@@ -39,3 +39,9 @@ void alloc4(int **p, int a, int b, int c, int d) {
     int ar[4] = {a, b, c, d};
     *p = ar;
 }
+
+int size() {
+    int **a = 0;
+    int b = 0;
+    return sizeof(a+b);
+}

@@ -3,14 +3,21 @@
 LVar *locals;
 Node *code[100];
 
-bool consume(char *s, TokenKind TK) {
-    if (token->kind != TK ||
-        strlen(s) != token->len ||
-        memcmp(token->str, s, token->len))
+bool consume(TokenKind TK) {
+    if(token->kind != TK)
         return false;
     else {
         token = token->next;
         return true;
+    }
+}
+
+bool consume_op(char *s) {
+    if (strlen(s) != token->len ||
+        memcmp(token->str, s, token->len))
+        return false;
+    else {
+        return consume(TK_RESERVED);
     }
 }
 
@@ -25,9 +32,9 @@ void expect(char *s, TokenKind TK) {
 
 // 次のトークンが期待している記号の時には、トークンを１つ読み進めて
 // 真を返す。それ以外の場合には偽を返す。
-bool consume_op(char *op) {
-    consume(op, TK_RESERVED);
-}
+//bool consume_op(char *op) {
+//    consume(op, TK_RESERVED);
+//}
 
 // 次のトークンが期待している記号の時には、トークンを１つ読み進める。
 // それ以外の場合にはエラーを報告する。
@@ -59,7 +66,7 @@ Token *consume_ident() {
     }
 }
 
-// 変数を名前で検索する。見つからなかった場合はerrorを返す。
+// 変数を名前で検索する。見つからなかった場合はerrorを返す(未宣言).
 LVar *find_lvar(Token *tok) {
     for (LVar *var = locals; var; var = var->next){
         if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)){
@@ -84,61 +91,6 @@ LVar *set_lvar(Token *tok, Type *type) {
     return lvar;
 }
 
-// 
-int consume_return() {
-    if (token->kind != TK_RETURN || token->len != 6) {
-        return 0;
-    } else {
-        token = token->next;
-        return 1;
-    }
-}
-
-int consume_if() {
-    if (token->kind != TK_IF || token->len != 2) {
-        return 0;
-    } else {
-        token = token->next;
-        return 1;
-    }
-}
-
-int consume_else() {
-    if (token->kind != TK_ELSE || token->len != 4) {
-        return 0;
-    } else {
-        token = token->next;
-        return 1;
-    }
-}
-
-int consume_while() {
-    if (token->kind != TK_WHILE || token->len != 5) {
-        return 0;
-    } else {
-        token = token->next;
-        return 1;
-    }
-}
-
-int consume_for() {
-    if (token->kind != TK_FOR || token->len != 3) {
-        return 0;
-    } else {
-        token = token->next;
-        return 1;
-    }
-}
-
-int consume_int() {
-    if (token->kind != TK_INT || token->len != 3) {
-        return 0;
-    } else {
-        token = token->next;
-        return 1;
-    }
-}
-
 // 次のトークンが入力の終わりである時trueを返す
 bool at_eof() {
     return token->kind == TK_EOF;
@@ -157,6 +109,19 @@ Type *define_type() {
     return own_type;
 }
 
+// 四則演算時の変数の型の引継ぎ
+Type *cast_type (Node *node1, Node *node2) {
+    Type *type1 = node1->type;
+    Type *type2 = node2->type;
+    if (type1->kind == PTR && type2->kind == PTR) {
+        error("ポインタ同士の計算です");
+    } else if (type1->kind == PTR) {
+        return type1;
+    } else {
+        return type2;
+    }
+}
+
 // 新しいノードを作成する関数
 // ノードが記号の場合
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
@@ -172,6 +137,8 @@ Node *new_node_num(int val) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = ND_NUM;
     node->val = val;
+    node->type = calloc(1, sizeof(Type));
+    node->type->kind =INT;
     return node;
 }
 
@@ -191,7 +158,7 @@ Node *primary() {
 	    return node;
     } else {
         node = calloc(1, sizeof(Node));
-        if (consume_int()) {
+        if (consume(TK_INT)) {
             // 変数の宣言
             node->type = define_type();
             tok = consume_ident();
@@ -229,43 +196,64 @@ Node *primary() {
             }
         } else {
             // 数字
-            return new_node_num(expect_number());
+            node = new_node_num(expect_number());
+            return node;
         }
     }
 }	 
 
 // unary = ("+" | "-")? primary
 //       | ("*" | "&") unary
+//       | "sizeof" unary
 // 単項の+, -。 -x は 0-x に変換
 Node *unary() {
-    if (consume_op("+"))
+    if (consume_op("+")) {
 	    return primary();
-    else if (consume_op("-"))
-	    return new_node(ND_SUB, new_node_num(0), primary());
-    else if (consume_op("*")) {
+    } else if (consume_op("-")) {
+	    Node *node = new_node(ND_SUB, new_node_num(0), primary());
+        node->type = node->lhs->type;
+        return node;
+    } else if (consume_op("*")) {
         Node *node = calloc(1, sizeof(Node));
         node->kind = ND_DEREF;
         node->lhs = unary();
+        // 参照外し
+        node->type = node->lhs->type->ptr_to;
         return node;
     } else if (consume_op("&")) {
         Node *node = calloc(1, sizeof(Node));
         node->kind = ND_ADDR;
         node->lhs = unary();
+        // アドレス
+        node->type = calloc(1, sizeof(Type));
+        node->type->kind = PTR;
+        node->type->ptr_to = node->lhs->type;
         return node;
+    } else if (consume(TK_SIZEOF)) {
+        Node *node = unary();
+        if (node->type->kind == INT) {
+            return new_node_num(4);
+        } else if (node->type->kind = PTR) {
+            return new_node_num(8);
+        }
+    }else {
+        return primary();
     }
-    return primary();
 }   
 
 // mul = unary ("*" unary | "/" unary)*
 Node *mul() {
     Node *node = unary();
     for (;;) {
-	    if (consume_op("*"))
+	    if (consume_op("*")) {
 	        node = new_node(ND_MUL, node, unary());
-	    else if (consume_op("/"))
+            node->type = cast_type(node->rhs, node->lhs);
+        } else if (consume_op("/")) {
 	        node = new_node(ND_DIV, node, unary());
-	    else
+            node->type = cast_type(node->rhs, node->lhs);
+        } else {
 	        return node;
+        }
     }
 }
 
@@ -273,11 +261,13 @@ Node *mul() {
 Node *add() {
     Node *node = mul();
     for (;;) {
-	    if (consume_op("+"))
+	    if (consume_op("+")) {
 	        node = new_node(ND_ADD, node, mul());
-	    else if (consume_op("-"))
+            node->type = cast_type(node->rhs, node->lhs);
+        } else if (consume_op("-")) {
 	        node = new_node(ND_SUB, node, mul());
-    	else
+            node->type = cast_type(node->rhs, node->lhs);
+        } else
 	        return node;
     }
 }
@@ -288,16 +278,25 @@ Node *add() {
 Node *relational() {
     Node *node = add();
     for (;;) {
-	    if (consume_op(">="))
+	    if (consume_op(">=")) {
             node = new_node(ND_LEQ, add(), node);
-	    else if (consume_op("<="))
+            node->type = calloc(1, sizeof(Type));
+            node->type->kind = INT;
+        } else if (consume_op("<=")) {
 	        node = new_node(ND_LEQ, node, add());
-	    else if (consume_op(">"))
+            node->type = calloc(1, sizeof(Type));
+            node->type->kind = INT;
+        } else if (consume_op(">")) {
 	        node = new_node(ND_LESS, add(), node);
-	    else if (consume_op("<"))
+            node->type = calloc(1, sizeof(Type));
+            node->type->kind = INT;
+        } else if (consume_op("<")) {
 	        node = new_node(ND_LESS, node, add());
-	    else
+            node->type = calloc(1, sizeof(Type));
+            node->type->kind = INT;
+        } else { 
 	        return node;
+        }
     }
 }
 
@@ -305,20 +304,27 @@ Node *relational() {
 Node *equality() {
     Node *node = relational();
     for (;;) {
-	if (consume_op("=="))
-	    node = new_node(ND_EQ, node, relational());
-        else if (consume_op("!="))
-	    node = new_node(ND_NEQ, node, relational());
-	else
-	    return node;
+	    if (consume_op("==")) {
+	        node = new_node(ND_EQ, node, relational());
+            node->type = calloc(1, sizeof(Type));
+            node->type->kind = INT;
+        } else if (consume_op("!=")) {
+	        node = new_node(ND_NEQ, node, relational());
+            node->type = calloc(1, sizeof(Type));
+            node->type->kind = INT;
+        } else {
+	        return node;
+        }
     }
 }
 
 // assign = equality ("=" assign)?
 Node *assign() {
     Node *node = equality();
+    Type *type = node->type;
     if (consume_op("="))
         node = new_node(ND_ASSIGN, node, assign());
+        node->type = type;
     return node;
 }
 
@@ -335,13 +341,13 @@ Node *expr() {
 //      | "{" stmt* "}"
 Node *stmt() {
     Node *node;
-    if (consume_return()) {
+    if (consume(TK_RETURN)) {
         node = calloc(1, sizeof(Node));
         node->kind = ND_RETURN;
         node->lhs = expr();
         expect_op(";");
         return node;
-    } else if (consume_if()) {
+    } else if (consume(TK_IF)) {
         // if (cond) lhs else rhs
         node = calloc(1, sizeof(Node));
         node->kind = ND_IF;
@@ -349,11 +355,11 @@ Node *stmt() {
         node->cond = expr(); 
         expect_op(")");
         node->lhs = stmt();
-        if (consume_else()) {
+        if (consume(TK_ELSE)){
             node->rhs = stmt();
         }
         return node;
-    } else if (consume_while()) {
+    } else if (consume(TK_WHILE)) {
         // while (cond) lhs
         node = calloc(1, sizeof(Node));
         node->kind = ND_WHILE;
@@ -362,7 +368,7 @@ Node *stmt() {
         expect_op(")");
         node->lhs = stmt();
         return node;
-    } else if (consume_for()) {
+    } else if (consume(TK_FOR)) {
         // for (lhs; cond; rhs) body
         node = calloc(1, sizeof(Node));
         node->kind = ND_FOR;
@@ -414,7 +420,7 @@ Node *deffunc() {
     node->name[tok->len] = '\0';
 
     expect_op("(");
-    for (i=0; consume("int", TK_INT) && i<6; i++) {
+    for (i=0; consume(TK_INT) && i<6; i++) {
         node->fargs[i] = calloc(1, sizeof(Node));
         node->fargs[i]->kind = ND_LVAR;
         node->fargs[i]->type = define_type();

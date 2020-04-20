@@ -1,5 +1,6 @@
 #include "9cc.h"
 
+// 与えられた文字がアルファベット、数字、_(アンダースコア)の時真を返す
 int is_alnum(char c) {
 	return isalnum(c) || (c == '_');
 }
@@ -50,42 +51,50 @@ void tokenize(char *p) {
 
 		// return
 		if (!strncmp(p, "return", 6) && !is_alnum(p[6])) {
-			cur = new_token(TK_RETURN, cur, "return", 6);
+			cur = new_token(TK_RETURN, cur, p, 6);
 			p += 6;
 			continue;
 		}
 
 		// if
 		if (!strncmp(p, "if", 2) && !is_alnum(p[2])) {
-			cur = new_token(TK_IF, cur, "if", 2);
+			cur = new_token(TK_IF, cur, p, 2);
 			p += 2;
 			continue;
 		}
 
 		// else
 		if (!strncmp(p, "else", 4) && !is_alnum(p[4])) {
-			cur = new_token(TK_ELSE, cur, "else", 4);
+			cur = new_token(TK_ELSE, cur, p, 4);
 			p += 4;
 			continue;
 		}
 
 		// while
 		if (!strncmp(p, "while", 5) && !is_alnum(p[5])) {
-			cur = new_token(TK_WHILE, cur, "while", 5);
+			cur = new_token(TK_WHILE, cur, p, 5);
 			p += 5;
 			continue;
 		}
 
 		// for
 		if (!strncmp(p, "for", 3) && !is_alnum(p[3])) {
-			cur = new_token(TK_FOR, cur, "for", 3);
+			cur = new_token(TK_FOR, cur, p, 3);
 			p += 3;
 			continue;
 		}
 
+		// int
 		if (!strncmp(p, "int", 3) && !is_alnum(p[3])) {
-			cur = new_token(TK_INT, cur, "int", 3);
+			cur = new_token(TK_INT, cur, p, 3);
 			p += 3;
+			continue;
+		}
+
+		// sizeof
+		if (!strncmp(p, "sizeof", 6) && !is_alnum(p[6])) {
+			cur = new_token(TK_SIZEOF, cur, p, 6);
+			p += 6;
 			continue;
 		}
 
@@ -105,10 +114,10 @@ void tokenize(char *p) {
 	    	continue;
 		}
 
-		// "alpha (alpha | num)*" からなる識別子
+		// 識別子
 		if (isalpha(*p) || *p == '_') {
 			char *tmp = p;
-			// p ~ tmp-1 までがアルファベットからなる識別子
+			// p ~ tmp-1 までが識別子
 			for (tmp; is_alnum(*tmp); tmp++);
 			cur = new_token(TK_IDENT, cur, p, tmp - p);
 			p = tmp;
