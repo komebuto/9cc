@@ -55,6 +55,18 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 // user_inputをトークナイズして先頭のトークンをtokenに代入
 void tokenize(char *p);
 
+// Type
+typedef enum {
+    INT,
+    PTR,
+} TypeKind;
+
+typedef struct Type Type;
+struct Type {
+    TypeKind kind;
+    Type *ptr_to;  // kindがPTRのときのポインタの先の型
+};
+
 // NodeKind
 typedef enum {
     ND_NUM,     // number
@@ -92,6 +104,7 @@ struct Node {
     int offset;         // ND_LVAR
     char *name;         // ND_FUNC* 関数名文字列
     Node *fargs[6];     // ND_FUNC* 関数の引数 (最大引数6個)
+    Type *type;         // ND_LVARの型
 };
 
 // エラーを報告する関数

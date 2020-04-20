@@ -43,14 +43,18 @@ char *reg_arg[6] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 // je .L[a~Z]XXX: cmpの結果等しければ, .L[a~Z]XXX: までジャンプ (XXXは通し番号)
 // jmp .L[a~Z]XXX: .L[a~Z]XXX: までジャンプ (XXXは通し番号)
 
-// 代入の左辺がアドレスを指すものかどうかを調べる ((a+1) = 2 のような不正な代入式を排除)
-// その変数の番地をスタックにプッシュ
+// int変数のアドレスの計算 スタックにpush
 void gen_lval(Node *node) {
-	if (node->kind != ND_LVAR)
-		error("変数ではありません");
-	printf("    mov rax, rbp\n");				// 変数のポインタはベースポインタからの
-	printf("    sub rax, %d\n", node->offset);  // オフセットとして得ている
-	printf("    push rax\n");			        // スタックにプッシュ
+	if (node->kind == ND_LVAR) {
+		printf("    mov rax, rbp\n");				// 変数のポインタはベースポインタからの
+		printf("    sub rax, %d\n", node->offset);  // オフセットとして得ている
+		printf("    push rax\n");			        // スタックにプッシュ
+	} else if (node->kind == ND_DEREF) {
+		// * lhs
+		gen(node->lhs);
+	} else {
+		error("代入の左辺が不正です");
+	}
 }
 
 // コードジェネレータ
@@ -114,7 +118,7 @@ void gen(Node *node) {
 			return;
 		case ND_LVAR:							// 与えられた変数を値に置き換える
 			gen_lval(node);						// 変数のアドレスをpush
-			printf("    pop rax\n");			// そのアドレスをraxにpop
+			printf("    pop rax\n");			// そのアドレスをraxにpop			
 			printf("    mov rax, [rax]\n");		// rax番地の値をraxにロード
 			printf("    push rax\n");			// ロードされた値をpush
 			return;

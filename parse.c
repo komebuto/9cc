@@ -162,7 +162,7 @@ Node *new_node_num(int val) {
 }
 
 // primary = "(" expr ")" 
-//         | "int" ident  変数名 定義
+//         | "int" ("*")* ident  変数名 定義
 //         | ident [ "(" { assign ("," assign)* }? ")" ]? 変数or関数呼び出し
 //         | num
 Node *primary() {
@@ -179,11 +179,20 @@ Node *primary() {
         node = calloc(1, sizeof(Node));
         if (consume_int()) {
             // 変数の宣言
+            Type *type = calloc(1, sizeof(Type));
+            Type *own_type = type;
+            while (consume_op("*")) {
+                type->kind = PTR;
+                type->ptr_to = calloc(1, sizeof(Type));
+                type = type->ptr_to;
+            } 
+            type->kind = INT;
             tok = consume_ident();
             if (!tok) error("宣言の後が識別子として不正です");
             lvar = set_lvar(tok);
             node->kind = ND_LVAR;
             node->offset = lvar->offset;
+            node->type = own_type;
             return node;
         } else if (tok = consume_ident()) {
             // 変数or関数呼び出し

@@ -15,6 +15,15 @@ assert() {
 	    exit 1
     fi
 }
+assert 3 """
+int main () {
+    int x;
+    int *y;
+    y = &x;
+    *y = 3;
+    return x;
+}
+"""
 assert 1 """
 int main () {
     int x;
