@@ -81,6 +81,7 @@ LVar *find_lvar(Token *tok) {
 
 // 宣言されたローカル変数のオフセットを決める localsはグローバル変数
 LVar *set_lvar(Token *tok, Type *type) {
+    unsigned long n;
     LVar *lvar = calloc(1, sizeof(LVar));
     lvar->next = locals;
     lvar->name = tok->str;
@@ -88,17 +89,21 @@ LVar *set_lvar(Token *tok, Type *type) {
     lvar->type = type;
     lvar->offset = locals->offset;
     locals = lvar;
-    if (type->kind == ARRAY) {
-        size_t size = type->array_size;
-        if (type->ptr_to->kind == INT) {
-            locals->offset += 4*size;
-        } else if (type->ptr_to->kind == PTR) {
-            locals->offset += 8*size;
-        }
-    } else if (type->kind == INT) {
+    if (type->kind == INT) {
         locals->offset += 4;
     } else if (type->kind == PTR) {
         locals->offset += 8;
+    } else if (type->kind == ARRAY) {
+        n = 1;
+        while (type->kind == ARRAY) {
+            n *= type->array_size;
+            type = type->ptr_to;
+        }
+        if (type->kind == INT) {
+            locals->offset += 4*n;
+        } else if (type->kind == PTR) {
+            locals->offset += 8*n;
+        }
     }
     return lvar;
 }
@@ -113,6 +118,7 @@ void define_type(Node *node) {
     Token *tok;
     LVar *lvar;
     Type *types = calloc(1, sizeof(Type));
+    Type *tmp;
     node->type = types;
     while (consume_op("*")) {
         types->kind = PTR;
@@ -122,8 +128,8 @@ void define_type(Node *node) {
     types->kind = INT;
     tok = consume_ident();
     if (!tok) error("識別子として不正です");
-    if (consume_op("[")) {
-        Type *tmp = calloc(1, sizeof(Type));
+    while (consume_op("[")) {
+        tmp = calloc(1, sizeof(Type));
         tmp->kind = ARRAY;
         tmp->ptr_to = node->type;
         tmp->array_size = expect_number();
@@ -169,7 +175,7 @@ Node *new_node_num(int val) {
 }
 
 // primary = "(" expr ")" 
-//         | "int" ("*")* ident ("[" num "]")? 変数名 定義
+//         | "int" ("*")* ident ("[" num "]")* 変数名 定義
 //         | ident [ "(" { assign ("," assign)* }? ")" ]? 変数or関数呼び出し
 //         | num
 Node *primary() {
