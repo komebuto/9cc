@@ -67,6 +67,22 @@ Token *consume_ident() {
     }
 }
 
+size_t sizeoftype(Type *type) {
+    switch (type->kind) {
+        case INT: return 4;
+        case PTR: return 8;
+        case ARRAY: {
+            Type *ty = type;
+            size_t n = 1;
+            while (ty->kind == ARRAY) {
+                n *= ty->array_size;
+                ty = ty->ptr_to;
+            }
+            return n*sizeoftype(ty);
+        }
+    }
+}
+
 // 変数を名前で検索する。見つからなかった場合はerrorを返す(未宣言).
 LVar *find_lvar(Token *tok) {
     for (LVar *var = locals; var; var = var->next){
@@ -90,22 +106,7 @@ LVar *set_lvar(Token *tok, Type *type) {
     lvar->type = type;
     lvar->offset = locals->offset;
     locals = lvar;
-    if (type->kind == INT) {
-        locals->offset += 4;
-    } else if (type->kind == PTR) {
-        locals->offset += 8;
-    } else if (type->kind == ARRAY) {
-        n = 1;
-        while (type->kind == ARRAY) {
-            n *= type->array_size;
-            type = type->ptr_to;
-        }
-        if (type->kind == INT) {
-            locals->offset += 4*n;
-        } else if (type->kind == PTR) {
-            locals->offset += 8*n;
-        }
-    }
+    locals->offset += sizeoftype(type);
     return lvar;
 }
 
@@ -293,23 +294,7 @@ Node *unary() {
         return node;
     } else if (consume(TK_SIZEOF)) {
         Node *node = unary();
-        if (node->type->kind == INT) {
-            return new_node_num(4);
-        } else if (node->type->kind = PTR) {
-            return new_node_num(8);
-        } else if (node->type->kind == ARRAY) {
-            Type *tmp = node->type;
-            unsigned long n = 1;
-            while (tmp->kind == ARRAY) {
-                n *= tmp->array_size;
-                tmp = tmp->ptr_to;
-            }
-            if (tmp->kind == INT) {
-                return new_node_num(4*n);
-            } else if (tmp->kind == PTR) {
-                return new_node_num(8*n);
-            }
-        }
+        return new_node_num(sizeoftype(node->type));
     } else {
         return primary();
     }

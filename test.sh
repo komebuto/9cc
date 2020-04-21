@@ -27,6 +27,12 @@ int main() {
     return sizeof(a);
 }
 """
+assert 8 """
+int main() {
+    int a[2][2];
+    return sizeof(*a);
+}
+"""
 assert 3 """
 int main () {
     int a[2];
