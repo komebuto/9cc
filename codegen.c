@@ -243,29 +243,30 @@ void gen(Node *node) {
     printf("    pop rax\n");
     switch (node->kind) {
 	case ND_ADD:
-		if (node->lhs->kind == ND_LVAR){
-			// 左辺が変数の場合その型に応じて足すバイト数を調整する
+		// 式の型に応じて足すバイト数を調整する
+		if (node->type->kind == INT) {
+			// INT + INT
+			printf("    add rax, rdi\n");
+		} else {
 			if (node->lhs->type->kind == INT) {
-				;
-			} else if (node->lhs->type->ptr_to->kind == INT) {
-				printf("    imul rdi, 4\n");
-			} else if (node->lhs->type->ptr_to->kind == PTR) {
-				printf("    imul rdi, 8\n");
+				// INT + OTHERtype
+				printf("    imul rax, %lu\n", sizeoftype(node->type->ptr_to));
+				printf("    add rdi, rax\n");
+				printf("    mov rax, rdi\n");
+			} else {
+				// OTHERtype + INT
+				printf("    imul rdi, %lu\n", sizeoftype(node->type->ptr_to));
+				printf("    add rax, rdi\n");
 			}
 		}
-		printf("    add rax, rdi\n");
 	    break;
 	case ND_SUB:
-		if (node->lhs->kind == ND_LVAR){
-			if (node->lhs->type->kind == INT) {
-				;
-			} else if (node->lhs->type->ptr_to->kind == INT) {
-				printf("    imul rdi, 4\n");
-			} else if (node->lhs->type->ptr_to->kind == PTR) {
-				printf("    imul rdi, 8\n");
-			}
+		if (node->type->kind == INT) {
+			printf("    sub rax, rdi\n");
+		} else {
+			printf("    imul rdi, %lu\n", sizeoftype(node->type->ptr_to));
+			printf("    sub rax, rdi\n");
 		}
-	    printf("    sub rax, rdi\n");
 	    break;
 	case ND_MUL:
 	    printf("    imul rax, rdi\n");

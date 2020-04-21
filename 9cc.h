@@ -54,6 +54,8 @@ struct Type {
     size_t array_size;
 };
 
+size_t sizeoftype(Type *type);
+
 // Local variable
 typedef struct LVar LVar;
 struct LVar {

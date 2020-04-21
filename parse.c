@@ -208,10 +208,11 @@ Node *new_node_num(int val) {
     return node;
 }
 
-// primary = "(" expr ")" 
+// primary = (( "(" expr ")" 
 //         | "int" ("*")* ident ("[" num "]")* 変数名 定義
-//         | ident [ "(" { assign ("," assign)* }? ")" ]? 変数or関数呼び出し
-//         | num
+//         | ident "(" { assign ("," assign)* }? ")" 関数呼び出し
+//         | ident 変数
+//         | num )) ( "[" add "]" )?
 Node *primary() {
     Token *tok;
     Node *node;
@@ -221,23 +222,17 @@ Node *primary() {
     // "(" expr ")"
 	    node = expr();
         expect_op(")");
-	    return node;
+	    //return node;
     } else {
         node = calloc(1, sizeof(Node));
         if (consume(TK_INT)) {
             // 変数の宣言
+            // "int" ("*")* ident ("[" num "]")*
             define_type(node);
-            return node;
+            //return node;
         } else if (tok = consume_ident()) {
-            // 変数or関数呼び出し
-            if (!consume_op("(")) {
-                // 宣言無しの変数
-                lvar = find_lvar(tok); // 宣言済みかの確認
-                node->kind = ND_LVAR;
-                node->offset = lvar->offset;
-                node->type = lvar->type;
-                return node;
-            } else {
+            // 変数/関数呼び出し
+            if (consume_op("(")) {
                 // 関数の呼び出し
                 node->kind = ND_FUNCALL;
                 // 関数名の文字列
@@ -254,15 +249,36 @@ Node *primary() {
                         expect_op(",");
                         node->fargs[i++] = assign();
                     }
+ 
                 }
-                return node;
+                //return node;
+            } else {
+                // 宣言無しの変数
+                lvar = find_lvar(tok); // 宣言済みかの確認
+                node->kind = ND_LVAR;
+                node->offset = lvar->offset;
+                node->type = lvar->type;
+                //return node;
             }
         } else {
             // 数字
             node = new_node_num(expect_number());
-            return node;
+            //return node;
         }
     }
+    if (consume_op("[")) {
+        // node [add] == *(node + add)
+        Node *nd = calloc(1, sizeof(Node));
+        // nd->lhs == node + add
+        nd->lhs = new_node(ND_ADD, array2ptr(node), array2ptr(add()));
+        nd->lhs->type = cast_type(nd->lhs->lhs, nd->lhs->rhs);
+        // nd == *(lhs)
+        nd->kind = ND_DEREF;
+        nd->type = nd->lhs->type->ptr_to;
+        node = nd;
+        expect_op("]");
+    }
+    return node;
 }	 
 
 // unary = ("+" | "-")? primary
@@ -325,6 +341,9 @@ Node *add() {
             node->type = cast_type(node->rhs, node->lhs);
         } else if (consume_op("-")) {
 	        node = new_node(ND_SUB, array2ptr(node), array2ptr(mul()));
+            if (node->rhs->type->kind != INT) {
+                error("引き算の第二引数が不正です");
+            }
             node->type = cast_type(node->rhs, node->lhs);
         } else
 	        return node;

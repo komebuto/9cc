@@ -15,6 +15,42 @@ assert() {
 	    exit 1
     fi
 }
+assert 10 """
+int main() {
+    int a[3];
+    *a = 2;
+    *(a+1) = 10;
+    a[2] = 5;
+    return *(a-1+2);
+}
+"""
+assert 10 """
+int main() {
+    int a[3];
+    *a = 2;
+    *(a+1) = 10;
+    a[2] = 5;
+    return 1[a];
+}
+"""
+assert 5 """
+int main() {
+    int a[3];
+    *a = 2;
+    *(a+1) = 10;
+    a[2-1] = 5;
+    return a[2/2];
+}
+"""
+assert 5 """
+int main() {
+    int a[3];
+    *a = 2;
+    *(a+1) = 10;
+    a[2-1] = 5;
+    return *(a+1);
+}
+"""
 assert 12 """
 int main() {
     int a[3];
