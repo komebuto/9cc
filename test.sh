@@ -17,6 +17,20 @@ assert() {
 }
 assert 10 """
 int main() {
+    int a[2][3];
+    a[0][1] = 10;
+    return a[0][1];
+}
+"""
+assert 10 """
+int main() {
+    int a[2][3];
+    **a = 10;
+    return a[0][0];
+}
+"""
+assert 10 """
+int main() {
     int a[3];
     *a = 2;
     *(a+1) = 10;

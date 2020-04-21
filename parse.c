@@ -180,14 +180,6 @@ Type *cast_type (Node *node1, Node *node2) {
     }
 }
 
-// type T の配列の場合 type T へのポインタに変換する
-Node *array2ptr(Node *node){
-    if (node->type->kind == ARRAY) {
-        node->type->kind == PTR;
-    }
-    return node;
-}
-
 // 新しいノードを作成する関数
 // ノードが記号の場合
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
@@ -266,11 +258,11 @@ Node *primary() {
             //return node;
         }
     }
-    if (consume_op("[")) {
+    while (consume_op("[")) {
         // node [add] == *(node + add)
         Node *nd = calloc(1, sizeof(Node));
         // nd->lhs == node + add
-        nd->lhs = new_node(ND_ADD, array2ptr(node), array2ptr(add()));
+        nd->lhs = new_node(ND_ADD, node, add());
         nd->lhs->type = cast_type(nd->lhs->lhs, nd->lhs->rhs);
         // nd == *(lhs)
         nd->kind = ND_DEREF;
@@ -287,15 +279,15 @@ Node *primary() {
 // 単項の+, -。 -x は 0-x に変換
 Node *unary() {
     if (consume_op("+")) {
-	    return array2ptr(primary());
+	    return primary();
     } else if (consume_op("-")) {
-	    Node *node = new_node(ND_SUB, new_node_num(0), array2ptr(primary()));
+	    Node *node = new_node(ND_SUB, new_node_num(0), primary());
         node->type = node->lhs->type;
         return node;
     } else if (consume_op("*")) {
         Node *node = calloc(1, sizeof(Node));
         node->kind = ND_DEREF;
-        node->lhs = array2ptr(unary());
+        node->lhs = unary();
         // 参照外し
         node->type = node->lhs->type->ptr_to;
         return node;
@@ -321,10 +313,10 @@ Node *mul() {
     Node *node = unary();
     for (;;) {
 	    if (consume_op("*")) {
-	        node = new_node(ND_MUL, array2ptr(node), array2ptr(unary()));
+	        node = new_node(ND_MUL, node, unary());
             node->type = cast_type(node->rhs, node->lhs);
         } else if (consume_op("/")) {
-	        node = new_node(ND_DIV, array2ptr(node), array2ptr(unary()));
+	        node = new_node(ND_DIV, node, unary());
             node->type = cast_type(node->rhs, node->lhs);
         } else {
 	        return node;
@@ -337,10 +329,10 @@ Node *add() {
     Node *node = mul();
     for (;;) {
 	    if (consume_op("+")) {
-	        node = new_node(ND_ADD, array2ptr(node), array2ptr(mul()));
+	        node = new_node(ND_ADD, node, mul());
             node->type = cast_type(node->rhs, node->lhs);
         } else if (consume_op("-")) {
-	        node = new_node(ND_SUB, array2ptr(node), array2ptr(mul()));
+	        node = new_node(ND_SUB, node, mul());
             if (node->rhs->type->kind != INT) {
                 error("引き算の第二引数が不正です");
             }
@@ -357,19 +349,19 @@ Node *relational() {
     Node *node = add();
     for (;;) {
 	    if (consume_op(">=")) {
-            node = new_node(ND_LEQ, array2ptr(add()), array2ptr(node));
+            node = new_node(ND_LEQ, add(), node);
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else if (consume_op("<=")) {
-	        node = new_node(ND_LEQ, array2ptr(node), array2ptr(add()));
+	        node = new_node(ND_LEQ, node, add());
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else if (consume_op(">")) {
-	        node = new_node(ND_LESS, array2ptr(add()), array2ptr(node));
+	        node = new_node(ND_LESS, add(), node);
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else if (consume_op("<")) {
-	        node = new_node(ND_LESS, array2ptr(node), array2ptr(add()));
+	        node = new_node(ND_LESS, node, add());
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else { 
@@ -383,11 +375,11 @@ Node *equality() {
     Node *node = relational();
     for (;;) {
 	    if (consume_op("==")) {
-	        node = new_node(ND_EQ, array2ptr(node), array2ptr(relational()));
+	        node = new_node(ND_EQ, node, relational());
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else if (consume_op("!=")) {
-	        node = new_node(ND_NEQ, array2ptr(node), array2ptr(relational()));
+	        node = new_node(ND_NEQ, node, relational());
             node->type = calloc(1, sizeof(Type));
             node->type->kind = INT;
         } else {
@@ -401,7 +393,7 @@ Node *assign() {
     Node *node = equality();
     Type *type = node->type;
     if (consume_op("="))
-        node = new_node(ND_ASSIGN, array2ptr(node), array2ptr(assign()));
+        node = new_node(ND_ASSIGN, node, assign());
         node->type = type;
     return node;
 }
@@ -422,7 +414,7 @@ Node *stmt() {
     if (consume(TK_RETURN)) {
         node = calloc(1, sizeof(Node));
         node->kind = ND_RETURN;
-        node->lhs = array2ptr(expr());
+        node->lhs = expr();
         expect_op(";");
         return node;
     } else if (consume(TK_IF)) {
@@ -430,7 +422,7 @@ Node *stmt() {
         node = calloc(1, sizeof(Node));
         node->kind = ND_IF;
         expect_op("(");
-        node->cond = array2ptr(expr()); 
+        node->cond = expr(); 
         expect_op(")");
         node->lhs = stmt();
         if (consume(TK_ELSE)){
@@ -442,7 +434,7 @@ Node *stmt() {
         node = calloc(1, sizeof(Node));
         node->kind = ND_WHILE;
         expect_op("(");
-        node->cond = array2ptr(expr());
+        node->cond = expr();
         expect_op(")");
         node->lhs = stmt();
         return node;
@@ -456,7 +448,7 @@ Node *stmt() {
             expect_op(";");
         }
         if (!consume_op(";")) {
-            node->cond = array2ptr(expr());
+            node->cond = expr();
             expect_op(";");
         }
         if (!consume_op(")")) {
