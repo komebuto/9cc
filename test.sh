@@ -4,7 +4,7 @@ assert() {
     input="$2"
 
     ./9cc "$input" > tmp.s
-    gcc -o tmp tmp.s function.o
+    gcc -static -o tmp tmp.s function.o
     ./tmp
     actual="$?"
 
@@ -15,6 +15,38 @@ assert() {
 	    exit 1
     fi
 }
+assert 3 """
+int x;
+int main() {
+    int y;
+    x = 1;
+    y = 2;
+    return x + y;
+}
+"""
+assert 1 """
+int x;
+int main() {
+    x = 1;
+    return x;
+}
+"""
+assert 1 """
+int x;
+int main() {
+    int x;
+    x = 1;
+    return x;
+}
+"""
+assert 2 """
+int main() {
+    int a[2];
+    1[a] = 5;
+    a[0] = 2;
+    return 0[a];
+}
+"""
 assert 10 """
 int main() {
     int a[2][3];

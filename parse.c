@@ -1,6 +1,7 @@
 #include "9cc.h"
 
 LVar *locals;
+GVar *globals;
 Func *functions;
 Node *code[100];
 
@@ -68,24 +69,49 @@ Token *consume_ident() {
 }
 
 size_t sizeoftype(Type *type) {
-    switch (type->kind) {
+    switch (type->ty) {
         case INT: return 4;
         case PTR: return 8;
         case ARRAY: {
-            Type *ty = type;
+            Type *tmptype = type;
             size_t n = 1;
-            while (ty->kind == ARRAY) {
-                n *= ty->array_size;
-                ty = ty->ptr_to;
+            while (tmptype->ty == ARRAY) {
+                n *= tmptype->array_size;
+                tmptype = tmptype->ptr_to;
             }
-            return n*sizeoftype(ty);
+            return n*sizeoftype(tmptype);
         }
     }
 }
 
-// 変数を名前で検索する。見つからなかった場合はerrorを返す(未宣言).
+// 変数を名前でローカル変数の中から検索する。
+// 見つからなかった場合は0を返す(未宣言).
 LVar *find_lvar(Token *tok) {
     for (LVar *var = locals; var; var = var->next){
+        if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)){
+            return var;
+        }
+    }
+    return 0;
+}
+
+// 宣言されたローカル変数のオフセットを決める localsはグローバル変数
+LVar *set_lvar(Token *tok, Type *type) {
+    LVar *lvar = calloc(1, sizeof(LVar));
+    lvar->next = locals;
+    lvar->name = tok->str;
+    lvar->len = tok->len;
+    lvar->type = type;
+    lvar->offset = locals->offset;
+    locals = lvar;
+    locals->offset += sizeoftype(type);
+    return lvar;
+}
+
+// 変数をグローバル変数の中から名前で検索。
+// 見つからなかったらエラーを報告
+GVar *find_gvar(Token *tok) {
+    for (GVar *var = globals; var; var->next) {
         if (var->len == tok->len && !memcmp(tok->str, var->name, var->len)){
             return var;
         }
@@ -96,18 +122,16 @@ LVar *find_lvar(Token *tok) {
     error("%s: 定義されていない変数です.", undef_var);
 }
 
-// 宣言されたローカル変数のオフセットを決める localsはグローバル変数
-LVar *set_lvar(Token *tok, Type *type) {
-    unsigned long n;
-    LVar *lvar = calloc(1, sizeof(LVar));
-    lvar->next = locals;
-    lvar->name = tok->str;
-    lvar->len = tok->len;
-    lvar->type = type;
-    lvar->offset = locals->offset;
-    locals = lvar;
-    locals->offset += sizeoftype(type);
-    return lvar;
+GVar *set_gvar(Token *tok, Type *type) {
+    GVar *gvar = calloc(1, sizeof(GVar));
+    gvar->next = globals;
+    gvar->name = tok->str;
+    gvar->len = tok->len;
+    gvar->type = type;
+    gvar->offset = globals->offset;
+    globals = gvar;
+    globals->offset += sizeoftype(type);
+    return gvar;
 }
 
 // 関数を名前で検索する。見つからなかった場合はerrorを返す(未宣言). (ファイルスコープ)
@@ -139,29 +163,43 @@ bool at_eof() {
     return token->kind == TK_EOF;
 }
 
-// 宣言された変数の型を調べて引数で渡されたNodeのtypeに格納
-void define_type(Node *node) {
-    Token *tok;
-    LVar *lvar;
+// 宣言された変数の型の前半部分を読む
+// "int" ("*")*
+void read_def1(Node *node, TypeKind tk) {
     Type *types = calloc(1, sizeof(Type));
-    Type *tmp;
     node->type = types;
     while (consume_op("*")) {
-        types->kind = PTR;
+        types->ty = PTR;
         types->ptr_to = calloc(1, sizeof(Type));
         types = types->ptr_to;
     }
-    types->kind = INT;
-    tok = consume_ident();
-    if (!tok) error("識別子として不正です");
+    types->ty = tk;
+}
+
+void read_array(Node *node) {
+    Type *tmp;
     while (consume_op("[")) {
         tmp = calloc(1, sizeof(Type));
-        tmp->kind = ARRAY;
+        tmp->ty = ARRAY;
         tmp->ptr_to = node->type;
         tmp->array_size = expect_number();
         node->type = tmp;
         expect_op("]");
     }
+}
+
+// 宣言された変数の型を調べて引数で渡されたNodeのtypeに格納
+void define_type(Node *node) {
+    Token *tok;
+    LVar *lvar;
+    Type *tmp;
+    Type *types = calloc(1, sizeof(Type));
+    
+    read_def1(node, INT);
+    tok = consume_ident();
+    if (!tok) error("識別子として不正です");
+    read_array(node);
+
     lvar = set_lvar(tok, node->type);
     node->offset = lvar->offset;
     node->kind = ND_LVAR;
@@ -171,9 +209,9 @@ void define_type(Node *node) {
 Type *cast_type (Node *node1, Node *node2) {
     Type *type1 = node1->type;
     Type *type2 = node2->type;
-    if (type1->kind == INT) {
+    if (type1->ty == INT) {
         return type2;
-    } else if (type2->kind == INT) {
+    } else if (type2->ty == INT) {
         return type1;
     } else {
         error("演算の型が不正です");
@@ -196,7 +234,7 @@ Node *new_node_num(int val) {
     node->kind = ND_NUM;
     node->val = val;
     node->type = calloc(1, sizeof(Type));
-    node->type->kind =INT;
+    node->type->ty =INT;
     return node;
 }
 
@@ -209,6 +247,7 @@ Node *primary() {
     Token *tok;
     Node *node;
     LVar *lvar;
+    GVar *gvar;
     int i;
     if (consume_op("(")) {
     // "(" expr ")"
@@ -232,7 +271,7 @@ Node *primary() {
                 strncpy(node->name, tok->str, tok->len);
                 node->name[tok->len] = '\0';
                 node->type = calloc(1, sizeof(Type));
-                node->type->kind = INT;    ////////// 現在の所int型の関数のみ
+                node->type->ty = INT;    ////////// 現在の所int型の関数のみ
                 if (!consume_op(")")) {
                     // 引数あり
                     i = 0;
@@ -247,15 +286,23 @@ Node *primary() {
             } else {
                 // 宣言無しの変数
                 lvar = find_lvar(tok); // 宣言済みかの確認
-                node->kind = ND_LVAR;
-                node->offset = lvar->offset;
-                node->type = lvar->type;
-                //return node;
+                if (lvar) {
+                    // ローカル変数
+                    node->kind = ND_LVAR;
+                    node->offset = lvar->offset;
+                    node->type = lvar->type;
+                } else {
+                    // グローバル変数で探す
+                    gvar = find_gvar(tok); // 見つからなかったらここでエラー
+                    node->kind = ND_GVARCALL;
+                    node->offset = gvar->offset;
+                    node->type = gvar->type;
+                    node->name = gvar->name;
+                }
             }
         } else {
             // 数字
             node = new_node_num(expect_number());
-            //return node;
         }
     }
     while (consume_op("[")) {
@@ -297,7 +344,7 @@ Node *unary() {
         node->lhs = unary();
         // アドレス
         node->type = calloc(1, sizeof(Type));
-        node->type->kind = PTR;
+        node->type->ty = PTR;
         node->type->ptr_to = node->lhs->type;
         return node;
     } else if (consume(TK_SIZEOF)) {
@@ -333,7 +380,7 @@ Node *add() {
             node->type = cast_type(node->rhs, node->lhs);
         } else if (consume_op("-")) {
 	        node = new_node(ND_SUB, node, mul());
-            if (node->rhs->type->kind != INT) {
+            if (node->rhs->type->ty != INT) {
                 error("引き算の第二引数が不正です");
             }
             node->type = cast_type(node->rhs, node->lhs);
@@ -351,19 +398,19 @@ Node *relational() {
 	    if (consume_op(">=")) {
             node = new_node(ND_LEQ, add(), node);
             node->type = calloc(1, sizeof(Type));
-            node->type->kind = INT;
+            node->type->ty = INT;
         } else if (consume_op("<=")) {
 	        node = new_node(ND_LEQ, node, add());
             node->type = calloc(1, sizeof(Type));
-            node->type->kind = INT;
+            node->type->ty = INT;
         } else if (consume_op(">")) {
 	        node = new_node(ND_LESS, add(), node);
             node->type = calloc(1, sizeof(Type));
-            node->type->kind = INT;
+            node->type->ty = INT;
         } else if (consume_op("<")) {
 	        node = new_node(ND_LESS, node, add());
             node->type = calloc(1, sizeof(Type));
-            node->type->kind = INT;
+            node->type->ty = INT;
         } else { 
 	        return node;
         }
@@ -377,11 +424,11 @@ Node *equality() {
 	    if (consume_op("==")) {
 	        node = new_node(ND_EQ, node, relational());
             node->type = calloc(1, sizeof(Type));
-            node->type->kind = INT;
+            node->type->ty = INT;
         } else if (consume_op("!=")) {
 	        node = new_node(ND_NEQ, node, relational());
             node->type = calloc(1, sizeof(Type));
-            node->type->kind = INT;
+            node->type->ty = INT;
         } else {
 	        return node;
         }
@@ -474,42 +521,51 @@ Node *stmt() {
 }
 
 // deffunc = "int" ident "(" ["int" ident ("," "int" ident)* ]? ")" "{" stmt* "}"
+//         | "int" ident ("[" num "]")? ";"
 Node *deffunc() {
+    GVar *gvar;
     Node *node = calloc(1, sizeof(Node));
-    node->type = calloc(1, sizeof(Type));
     locals = calloc(1, sizeof(LVar)); // 関数毎にローカル変数を持つ
     int i = 0;
-
     expect("int", TK_INT);
-    node->type->kind = INT;
+    read_def1(node, INT);
     Token *tok = consume_ident();
     if (!tok) error("関数名が不正です");
-    set_func(tok, node->type);
 
-    node->kind = ND_FUNCDEF;
-
-    // 関数名文字列
     node->name = calloc(tok->len+1, sizeof(char));
     strncpy(node->name, tok->str, tok->len);
     node->name[tok->len] = '\0';
 
-    expect_op("(");
-    for (i=0; consume(TK_INT) && i<6; i++) {
-        node->fargs[i] = calloc(1, sizeof(Node));
-        node->fargs[i]->kind = ND_LVAR;
-        define_type(node->fargs[i]);
-        if (!consume_op(",")) {
-            break;
-        } 
-    }
-    expect_op(")");
-    expect_op("{");
-    i = 0;
-    while (!consume_op("}")) {
-        node->stmts[i++] = stmt();
-        if (at_eof()) {
-            expect_op("}");
+    // 関数宣言
+    if (consume_op("(")) {
+        // ident
+        node->kind = ND_FUNCDEF;
+        set_func(tok, node->type);
+        for (i=0; consume(TK_INT) && i<6; i++) {
+            node->fargs[i] = calloc(1, sizeof(Node));
+            node->fargs[i]->kind = ND_LVAR;
+            define_type(node->fargs[i]);
+            if (!consume_op(",")) {
+                break;
+            } 
         }
+        expect_op(")");
+        expect_op("{");
+        i = 0;
+        while (!consume_op("}")) {
+            node->stmts[i++] = stmt();
+            if (at_eof()) {
+                expect_op("}");
+            }
+        }
+    } else {
+    // グローバル変数宣言
+        node->kind = ND_GVARDEF;
+        read_array(node);
+        expect_op(";");
+        gvar = set_gvar(tok, node->type);
+        gvar->name = node->name;
+        node->offset = gvar->offset;
     }
     return node;
 }

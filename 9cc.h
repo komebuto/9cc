@@ -49,7 +49,7 @@ typedef enum {
 
 typedef struct Type Type;
 struct Type {
-    TypeKind kind;
+    TypeKind ty;
     Type *ptr_to;  // kindがPTRのときのポインタの先の型
     size_t array_size;
 };
@@ -66,8 +66,18 @@ struct LVar {
     Type *type;  // 変数の型
 
 };
-
 extern LVar *locals;
+
+// Global variable
+typedef struct GVar GVar;
+struct GVar {
+    GVar *next;
+    char *name;
+    int len;
+    size_t offset;
+    Type *type;
+};
+extern GVar *globals;
 
 typedef struct Func Func;
 struct Func {
@@ -87,6 +97,8 @@ void tokenize(char *p);
 typedef enum {
     ND_NUM,     // number
     ND_LVAR,    // local variable
+    ND_GVARCALL, // call global variable
+    ND_GVARDEF,  // def global variable
     ND_ADD,     // +
     ND_SUB,     // -
     ND_MUL,     // *

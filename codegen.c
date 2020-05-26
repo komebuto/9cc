@@ -8,7 +8,7 @@ char *reg_arg[6] = {"di", "si", "dx", "cx", "8", "9"};
 
 // 変数に値を代入する際変数の値
 char prefix(Node *node) {
-	TypeKind ty = node->type->kind;
+	TypeKind ty = node->type->ty;
 	if (ty == PTR || ty == ARRAY) {
 		return 'r';
 	} else if (ty == INT) {
@@ -63,6 +63,8 @@ void gen_lval(Node *node) {
 	} else if (node->kind == ND_DEREF) {
 		// * lhs
 		gen(node->lhs);
+	} else if (node->kind == ND_GVARCALL) {
+		printf("    push offset %s\n", node->name);
 	} else {
 		error("代入の左辺が不正です");
 	}
@@ -130,19 +132,26 @@ void gen(Node *node) {
 			return;
 		case ND_LVAR:							           // 与えられた変数を値に置き換える
 			gen_lval(node);						           // 変数のアドレスをpush
-			if (node->type->kind != ARRAY) {
+			if (node->type->ty != ARRAY) {
 				printf("    pop rax\n");			           // そのアドレスをraxにpop 			
 				printf("    mov %cax, [rax]\n", prefix(node)); // rax番地の値をraxにロード
 				printf("    push rax\n");		               // ロードされた値をpush
 			} else {
-				Type *ty = node->type->ptr_to;
-				while (ty->kind == ARRAY){
+				Type *tmptype = node->type->ptr_to;
+				while (tmptype->ty == ARRAY){
 					printf("    mov rax, rsp\n");
 					printf("    push rax\n");
-					ty = ty->ptr_to;
+					tmptype = tmptype->ptr_to;
 				}
 			}
 			return;
+		case ND_GVARCALL:
+			printf("    push offset %s\n", node->name);
+			printf("    pop rax\n");
+			printf("    mov rax, [rax]\n");
+			printf("    push rax\n");
+			return;
+		case ND_GVARDEF: return;
 		case ND_ASSIGN:
 			gen_lval(node->lhs);                                 // 左辺の変数のアドレスをpush
 			gen(node->rhs);                                      // 右辺
@@ -251,11 +260,11 @@ void gen(Node *node) {
     switch (node->kind) {
 	case ND_ADD:
 		// 式の型に応じて足すバイト数を調整する
-		if (node->type->kind == INT) {
+		if (node->type->ty == INT) {
 			// INT + INT
 			printf("    add rax, rdi\n");
 		} else {
-			if (node->lhs->type->kind == INT) {
+			if (node->lhs->type->ty == INT) {
 				// INT + OTHERtype
 				printf("    imul rax, %lu\n", sizeoftype(node->type->ptr_to));
 				printf("    add rdi, rax\n");
@@ -268,7 +277,7 @@ void gen(Node *node) {
 		}
 	    break;
 	case ND_SUB:
-		if (node->type->kind == INT) {
+		if (node->type->ty == INT) {
 			printf("    sub rax, rdi\n");
 		} else {
 			printf("    imul rdi, %lu\n", sizeoftype(node->type->ptr_to));
