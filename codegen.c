@@ -146,10 +146,19 @@ void gen(Node *node) {
 			}
 			return;
 		case ND_GVARCALL:
-			printf("    push offset %s\n", node->name);
-			printf("    pop rax\n");
-			printf("    mov rax, [rax]\n");
-			printf("    push rax\n");
+			gen_lval(node);						           // 変数のアドレスをpush
+			if (node->type->ty != ARRAY) {
+				printf("    pop rax\n");			           // そのアドレスをraxにpop 			
+				printf("    mov %cax, [rax]\n", prefix(node)); // rax番地の値をraxにロード
+				printf("    push rax\n");		               // ロードされた値をpush
+			} else {
+				Type *tmptype = node->type->ptr_to;
+				while (tmptype->ty == ARRAY){
+					printf("    mov rax, rsp\n");
+					printf("    push rax\n");
+					tmptype = tmptype->ptr_to;
+				}
+			}
 			return;
 		case ND_GVARDEF: return;
 		case ND_ASSIGN:

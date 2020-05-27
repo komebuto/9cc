@@ -15,6 +15,29 @@ assert() {
 	    exit 1
     fi
 }
+assert 2 """
+int x[1][2];
+int main() {
+    x[0][1] = 2;
+    x[0][0] = 0;
+    return x[0][1];
+}
+"""
+assert 1 """
+int x[1];
+int main() {
+    x[0] = 1;
+    return 1;
+}
+"""
+assert 3 """
+int x[2];
+int main() {
+    x[0] = 1;
+    x[1] = 2;
+    return x[0] + x[1];
+}
+"""
 assert 3 """
 int x;
 int main() {
