@@ -45,3 +45,7 @@ int size() {
     int b = 0;
     return sizeof(a+b);
 }
+
+void print(char *str) {
+    printf("%s", str);
+}

@@ -1,5 +1,6 @@
 #include "9cc.h"
 
+unsigned long i;
 char *user_input;
 Token *token;
 LVar *locals;
@@ -12,19 +13,18 @@ int main(int argc, char **argv){
     }
      
     globals = calloc(1, sizeof(GVar));
+    strings = calloc(1, sizeof(Str));
     
     // 入力プログラム
     user_input = argv[1];
 
     // トークナイズ => Token *token
     tokenize(user_input);
-
     // パース => Node *code[100]
     program();
-    
+
     // アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
-    printf(".global main\n");
     printf(".data\n");
 
     while (globals->next) {
@@ -33,6 +33,10 @@ int main(int argc, char **argv){
         globals = globals->next;
     }
 
+    for (i=0; strings->next; strings=strings->next) {
+        printf(".L.data.%d:\n", strings->id);
+        printf("    .string \"%s\"\n", strings->name);
+    }
     printf(".text\n");
     
     // 先頭の関数から順に

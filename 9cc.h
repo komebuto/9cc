@@ -24,6 +24,8 @@ typedef enum {
     TK_FOR,      // for
     TK_EOF,      // 入力の終わりを表すトークン
     TK_INT,      // int型
+    TK_CHAR,     // char型
+    TK_STR,      // string
     TK_SIZEOF,   // sizeof
 } TokenKind;
 
@@ -42,6 +44,7 @@ extern Token *token;
 
 // Type
 typedef enum {
+    CHAR,
     INT,
     ARRAY,
     PTR,
@@ -50,10 +53,11 @@ typedef enum {
 typedef struct Type Type;
 struct Type {
     TypeKind ty;
-    Type *ptr_to;  // kindがPTRのときのポインタの先の型
+    Type *ptr_to;  // kindがPTR/ARRAYのときのポインタの先の型
     size_t array_size;
 };
 
+size_t onesizeoftype(Type *type);
 size_t sizeoftype(Type *type);
 
 // Local variable
@@ -88,6 +92,16 @@ struct Func {
 };
 extern Func *functions;
 
+// strings
+typedef struct Str Str;
+struct Str{
+    Str *next;
+    char *name;
+    int len;
+    int id;
+};
+extern Str *strings;
+
 // 新しいトークンを作る関数
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 // user_inputをトークナイズして先頭のトークンをtokenに代入
@@ -117,6 +131,7 @@ typedef enum {
     ND_FUNCDEF,    // Function define 
     ND_DEREF,   // * (参照外し)
     ND_ADDR,    // & (アドレス)
+    ND_STR,     // string
 } NodeKind;
 
 // Node

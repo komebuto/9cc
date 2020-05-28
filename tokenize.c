@@ -42,6 +42,7 @@ void tokenize(char *p) {
     Token head;
     head.next = NULL;
     Token *cur = &head;
+	char *tmpchar;
 
     while (*p) {
 		if (isspace(*p)) {
@@ -91,6 +92,13 @@ void tokenize(char *p) {
 			continue;
 		}
 
+		// char
+		if (!strncmp(p, "char", 4) && !is_alnum(p[4])) {
+			cur = new_token(TK_CHAR, cur, p, 4);
+			p += 4;
+			continue;
+		}
+
 		// sizeof
 		if (!strncmp(p, "sizeof", 6) && !is_alnum(p[6])) {
 			cur = new_token(TK_SIZEOF, cur, p, 6);
@@ -108,19 +116,33 @@ void tokenize(char *p) {
 	    	continue;
 		}
 
+		if (!strncmp(p, "\"", 1)) {
+			tmpchar = p+1;
+			// p+1 ~ tmpchar-1 までが "quote" の中身
+			for (; *tmpchar != '\"'; tmpchar++) {
+				if (*tmpchar == '\0') {
+					error_at(p, "クオーテーションが閉じていません");
+				}
+			}
+			cur = new_token(TK_STR, cur, p+1, tmpchar-p-1);
+			p = tmpchar+1;
+			continue;
+		}
+
 		// １文字の記号
 		if (strchr("+-*/()=><;{},&[]", *p)) {
 	    	cur = new_token(TK_RESERVED, cur, p++, 1);
 	    	continue;
 		}
 
-		// 識別子
+		// 識別子 ( first charcter is alphabet or '_' and 
+		// following charcteres can be either alphabet, number, or '_')
 		if (isalpha(*p) || *p == '_') {
-			char *tmp = p;
-			// p ~ tmp-1 までが識別子
-			for (tmp; is_alnum(*tmp); tmp++);
-			cur = new_token(TK_IDENT, cur, p, tmp - p);
-			p = tmp;
+			tmpchar = p;
+			// p ~ tmpchar-1 までが識別子
+			for (; is_alnum(*tmpchar); tmpchar++);
+			cur = new_token(TK_IDENT, cur, p, tmpchar - p);
+			p = tmpchar;
 			continue;
 		}
 

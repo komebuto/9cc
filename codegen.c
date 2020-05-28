@@ -5,6 +5,10 @@ unsigned long nelse;
 unsigned long nend;
 unsigned long nrsp;
 char *reg_arg[6] = {"di", "si", "dx", "cx", "8", "9"};
+char *r64_arg[6] = {"rdi", "rsi", "rdx", "rcx",  "r8",  "r9"};  // 64 bits
+char *r32_arg[6] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};  // 32 bits
+char *r16_arg[6] = { "di",  "si",  "dx",  "cx", "r8w", "r9w"};  // 16 bits
+char *r8_arg[6]  = {"dil", "sil",  "dl",  "cl", "r8b", "r9b"};  //  8 bits
 
 // 変数に値を代入する際変数の値
 char prefix(Node *node) {
@@ -76,12 +80,15 @@ void gen(Node *node) {
 	unsigned long nelse_tmp;
 	unsigned long nend_tmp;
 	int i;
+	char *reg;
+	Type *tmptype;
 
 	switch (node->kind) {
 		case ND_FUNCDEF:
 			// name ( fargs[6] ) { stmts[100] }
 			// プロローグ
     		// 変数の領域を確保する
+			printf(".globl %s\n", node->name);
 			printf("%s:\n", node->name);  // name
     		printf("    push rbp\n");       // 呼び出し元の関数のベースポインタをpush
     		printf("    mov rbp, rsp\n");   // そのベースポインタを指すようにRBPを変更
@@ -131,32 +138,31 @@ void gen(Node *node) {
 			printf("    push %d\n", node->val); // 数字の場合の値をpush
 			return;
 		case ND_LVAR:							           // 与えられた変数を値に置き換える
-			gen_lval(node);						           // 変数のアドレスをpush
-			if (node->type->ty != ARRAY) {
-				printf("    pop rax\n");			           // そのアドレスをraxにpop 			
-				printf("    mov %cax, [rax]\n", prefix(node)); // rax番地の値をraxにロード
-				printf("    push rax\n");		               // ロードされた値をpush
-			} else {
-				Type *tmptype = node->type->ptr_to;
-				while (tmptype->ty == ARRAY){
-					printf("    mov rax, rsp\n");
-					printf("    push rax\n");
-					tmptype = tmptype->ptr_to;
-				}
-			}
-			return;
 		case ND_GVARCALL:
 			gen_lval(node);						           // 変数のアドレスをpush
 			if (node->type->ty != ARRAY) {
-				printf("    pop rax\n");			           // そのアドレスをraxにpop 			
-				printf("    mov %cax, [rax]\n", prefix(node)); // rax番地の値をraxにロード
+				printf("    pop rax\n");			           // そのアドレスをraxにpop
+				switch (onesizeoftype(node->type)) {		   // raxアドレスの値をその型のサイズに合わせてロード
+					case 8: 
+						printf("    mov rax, [rax]\n");
+						break;
+					case 4: 
+						printf("    mov eax, [rax]\n");
+						break;
+					case 2: 
+						printf("    mov ax, [rax]\n");
+						printf("    movzw rax, ax\n");
+						break;
+					case 1: 
+						printf("    mov al, [rax]\n");
+						printf("    movzb rax, al\n");
+						break;
+				}
 				printf("    push rax\n");		               // ロードされた値をpush
 			} else {
-				Type *tmptype = node->type->ptr_to;
-				while (tmptype->ty == ARRAY){
+				for (tmptype = node->type->ptr_to; tmptype->ty == ARRAY; tmptype = tmptype->ptr_to){
 					printf("    mov rax, rsp\n");
 					printf("    push rax\n");
-					tmptype = tmptype->ptr_to;
 				}
 			}
 			return;
@@ -166,7 +172,22 @@ void gen(Node *node) {
 			gen(node->rhs);                                      // 右辺
 			printf("    pop rdi\n");                             // 代入式の右辺
 			printf("    pop rax\n");                             // 代入式の左辺（変数のアドレス）
-			printf("    mov [rax], %cdi\n", prefix(node->lhs));  // [rax]番地にrdiの値をストア
+			switch (onesizeoftype(node->lhs->type)) {
+				case 8: 
+					printf("    mov [rax], rdi\n");
+					break;
+				case 4:
+					printf("    mov [rax], edi\n");
+					break;
+				case 2: 
+					printf("    mov [rax], di\n");
+					printf("    movzw rdi, di\n");
+					break;
+				case 1: 
+					printf("    mov [rax], dil\n");
+					printf("    movzb rdi, dil\n");
+					break;
+			}
 			printf("    push rdi\n");                            // 代入式全体の評価値をpush
 			return;
 		case ND_RETURN:
@@ -258,6 +279,9 @@ void gen(Node *node) {
 			// & lhs
 			gen_lval(node->lhs);
 			return;
+		case ND_STR:
+			printf("    push offset .L.data.%d\n", node->val);
+			return;
 	}
 
 	// 二項演算子
@@ -269,17 +293,18 @@ void gen(Node *node) {
     switch (node->kind) {
 	case ND_ADD:
 		// 式の型に応じて足すバイト数を調整する
-		if (node->type->ty == INT) {
-			// INT + INT
+		// OTHERtypeはARRAY又はPTR
+		if (node->type->ty == INT || node->type->ty == CHAR) {
+			// INT/CHAR + INT/CHAR
 			printf("    add rax, rdi\n");
 		} else {
-			if (node->lhs->type->ty == INT) {
-				// INT + OTHERtype
+			if (node->lhs->type->ty == INT || node->type->ty == CHAR) {
+				// INT/CHAR + OTHERtype
 				printf("    imul rax, %lu\n", sizeoftype(node->type->ptr_to));
 				printf("    add rdi, rax\n");
 				printf("    mov rax, rdi\n");
 			} else {
-				// OTHERtype + INT
+				// OTHERtype + INT/CHAR
 				printf("    imul rdi, %lu\n", sizeoftype(node->type->ptr_to));
 				printf("    add rax, rdi\n");
 			}

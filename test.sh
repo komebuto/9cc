@@ -15,180 +15,40 @@ assert() {
 	    exit 1
     fi
 }
-assert 2 """
-int x[1][2];
-int main() {
-    x[0][1] = 2;
-    x[0][0] = 0;
-    return x[0][1];
-}
-"""
-assert 1 """
-int x[1];
-int main() {
-    x[0] = 1;
-    return 1;
-}
-"""
-assert 3 """
-int x[2];
-int main() {
-    x[0] = 1;
-    x[1] = 2;
-    return x[0] + x[1];
-}
-"""
-assert 3 """
-int x;
-int main() {
-    int y;
-    x = 1;
-    y = 2;
-    return x + y;
-}
-"""
-assert 1 """
-int x;
-int main() {
-    x = 1;
-    return x;
-}
-"""
-assert 1 """
-int x;
-int main() {
-    int x;
-    x = 1;
-    return x;
-}
-"""
-assert 2 """
-int main() {
-    int a[2];
-    1[a] = 5;
-    a[0] = 2;
-    return 0[a];
-}
-"""
-assert 10 """
-int main() {
-    int a[2][3];
-    a[0][1] = 10;
-    return a[0][1];
-}
-"""
-assert 10 """
-int main() {
-    int a[2][3];
-    **a = 10;
-    return a[0][0];
-}
-"""
-assert 10 """
-int main() {
-    int a[3];
-    *a = 2;
-    *(a+1) = 10;
-    a[2] = 5;
-    return *(a-1+2);
-}
-"""
-assert 10 """
-int main() {
-    int a[3];
-    *a = 2;
-    *(a+1) = 10;
-    a[2] = 5;
-    return 1[a];
-}
-"""
-assert 5 """
-int main() {
-    int a[3];
-    *a = 2;
-    *(a+1) = 10;
-    a[2-1] = 5;
-    return a[2/2];
-}
-"""
-assert 5 """
-int main() {
-    int a[3];
-    *a = 2;
-    *(a+1) = 10;
-    a[2-1] = 5;
-    return *(a+1);
-}
-"""
-assert 12 """
-int main() {
-    int a[3];
-    return sizeof(a);
-}
-"""
-assert 16 """
-int main() {
-    int a[2][2];
-    return sizeof(a);
-}
-"""
-assert 8 """
-int main() {
-    int a[2][2];
-    return sizeof(*a);
-}
-"""
-assert 3 """
-int main () {
-    int a[2];
-    *a = 1;
-    *(a + 1) = 2;
-    int *p;
-    p = a;
-    return *p + *(p + 1);
-}
-"""
-assert 1 """
-int main() {
-    int a[10];
-    int b;
-    b = 1;
-    return b;
-}
-"""
-assert 1 """
-int main() {
-    int *p; int *q;
-    int x; int y;
-    x = 0; y = 1;
-    p = &x; q = &y;
-    return *p + *q;
-}
-"""
-assert 4 """
-int main() {
-    int x;
-    return sizeof(x);
-}
-"""
-assert 4 """
-int main() {
-    int x;
-    return sizeof(x+1);
-}
-"""
-assert 8 """
-int main() {
-    int *p;
-    return sizeof(p);
-}
-"""
-assert 8 """
-int main() {
-    int *p;
-    return sizeof(p+1);
-}
-"""
+assert 97 "int main() { return \"abc\"[0]; }"
+assert 98 "int main() { return \"abc\"[1]; }"
+assert 99 "int main() { return \"abc\"[2]; }"
+assert 0 "int main() { return \"abc\"[3]; }"
+
+assert 2 "int main() { char x[2]; return sizeof(x); }"
+assert 1 "int main() { char x; x = 1; return x; }"
+assert 2 "int main() { char x[2]; x[1] = 2; return x[1]; }"
+assert 3 "int main() { char x[2]; x[0] = 1; x[1] = 2; return x[0] + x[1]; }"
+assert 6 "int main() { char x[2]; char y; int z; x[0] = 1; x[1] = -1; y = 10; z = -4; return x[0]+x[1]+y+z; }"
+assert 1 "int main() { char x; char y[2]; int z; z = 1; return z; }"
+assert 2 "int x[1][2]; int main() { x[0][1] = 10; x[0][0] = 0; int x[3][2]; x[0][1] = 2; return x[0][1]; }"
+assert 2 "int x[1][2]; int main() { x[0][1] = 2; x[0][0] = 0; return x[0][1]; }"
+assert 3 "int x[2]; int main() { x[0] = 1; x[1] = 2; return x[0] + x[1]; }"
+assert 3 "int x; int main() { int y; x = 1; y = 2; return x + y; }"
+assert 1 "int x; int main() { x = 1; return x; }"
+assert 1 "int x; int main() { int x; x = 1; return x; }"
+assert 2 "int main() { int a[2]; 1[a] = 5; a[0] = 2; return 0[a]; }"
+assert 10 "int main() { int a[2][3]; a[0][1] = 10; return a[0][1]; }"
+assert 10 "int main() { int a[2][3]; **a = 10; return a[0][0]; }"
+assert 10 "int main() { int a[3]; *a = 2; *(a+1) = 10; a[2] = 5; return *(a-1+2); }"
+assert 10 "int main() { int a[3]; *a = 2; *(a+1) = 10; a[2] = 5; return 1[a]; }"
+assert 5 "int main() { int a[3]; *a = 2; *(a+1) = 10; a[2-1] = 5; return a[2/2]; }"
+assert 5 "int main() { int a[3]; *a = 2; *(a+1) = 10; a[2-1] = 5; return *(a+1); }"
+assert 12 "int main() { int a[3]; return sizeof(a); }"
+assert 16 "int main() { int a[2][2]; return sizeof(a); }"
+assert 8 "int main() { int a[2][2]; return sizeof(*a); }"
+assert 3 "int main () { int a[2]; *a = 1; *(a + 1) = 2; int *p; p = a; return *p + *(p + 1); }"
+assert 1 "int main() { int a[10]; int b; b = 1; return b; }"
+assert 1 "int main() { int *p; int *q; int x; int y; x = 0; y = 1; p = &x; q = &y; return *p + *q; }"
+assert 4 "int main() { int x; return sizeof(x); }"
+assert 4 "int main() { int x; return sizeof(x+1); }"
+assert 8 "int main() { int *p; return sizeof(p); }"
+assert 8 "int main() { int *p; return sizeof(p+1); }"
 assert 4 """
 int main() {
     int *p;
@@ -480,5 +340,13 @@ x = 1;
 return twice(x);
 }
 """
-
+assert 1 """
+int main() {
+    char x;
+    char y[2];
+    int z;
+    z = 1;
+    return z;
+}
+"""
 echo OK
