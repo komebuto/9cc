@@ -111,9 +111,6 @@ void tokenize(char *p);
 typedef enum {
     ND_NUM,     // number
     ND_LVAR,    // local variable
-    ND_DEFLVAR,
-    ND_GVARCALL, // call global variable
-    ND_GVARDEF,  // def global variable
     ND_ADD,     // +
     ND_SUB,     // -
     ND_MUL,     // *

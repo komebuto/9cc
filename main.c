@@ -46,7 +46,7 @@ int main(int argc, char **argv){
 
         // 式の評価結果としてスタックにひとつの値が残っているはずなので、
         // スタックが溢れないようにポップしておく
-        if (code[i]->kind != ND_GVARDEF) 
+        if (code[i]->kind != ND_GVAR && code[i]->isdef) 
             printf("    pop rax\n");
     }
     

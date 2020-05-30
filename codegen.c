@@ -88,6 +88,7 @@ void gen(Node *node) {
 			// name ( fargs[6] ) { stmts[100] }
 			// プロローグ
     		// 変数の領域を確保する
+			if (!node->isdef) return;
 			printf(".globl %.*s\n", node->len, node->name);
 			printf("%.*s:\n", node->len, node->name);  // name
     		printf("    push rbp\n");       // 呼び出し元の関数のベースポインタをpush
@@ -166,7 +167,10 @@ void gen(Node *node) {
 			return;
 		case ND_LVAR:							           // 与えられた変数を値に置き換える
 		case ND_GVAR:
-			if (node->isdef) return;
+			if (node->isdef) {
+				if (node->lhs) gen(node->lhs);
+				return;
+			}
 			else {
 			gen_lval(node);						           // 変数のアドレスをpush
 			if (node->type->ty != ARRAY) {
@@ -196,7 +200,6 @@ void gen(Node *node) {
 			}
 			return;
 			}
-		case ND_GVARDEF: return;
 		case ND_ASSIGN:
 			gen_lval(node->lhs);                               // 左辺の変数のアドレスをpush
 			gen(node->rhs);                                      // 右辺
