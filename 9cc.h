@@ -111,6 +111,7 @@ void tokenize(char *p);
 typedef enum {
     ND_NUM,     // number
     ND_LVAR,    // local variable
+    ND_DEFLVAR,
     ND_GVARCALL, // call global variable
     ND_GVARDEF,  // def global variable
     ND_ADD,     // +
@@ -148,6 +149,7 @@ struct Node {
     char *name;         // ND_FUNC* 関数名文字列
     Node *fargs[6];     // ND_FUNC* 関数の引数 (最大引数6個)
     Type *type;         // ND_LVARの型
+    bool isdef;         // 変数の定義と代入が同時であるかどうか
 };
 
 // エラーを報告する関数

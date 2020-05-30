@@ -1,25 +1,15 @@
 #include "9cc.h"
 
+LVar *locals;
+GVar *globals;
 unsigned long nbegin;
 unsigned long nelse;
 unsigned long nend;
 unsigned long nrsp;
-char *reg_arg[6] = {"di", "si", "dx", "cx", "8", "9"};
 char *r64_arg[6] = {"rdi", "rsi", "rdx", "rcx",  "r8",  "r9"};  // 64 bits
 char *r32_arg[6] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};  // 32 bits
 char *r16_arg[6] = { "di",  "si",  "dx",  "cx", "r8w", "r9w"};  // 16 bits
 char *r8_arg[6]  = {"dil", "sil",  "dl",  "cl", "r8b", "r9b"};  //  8 bits
-
-// 変数に値を代入する際変数の値
-char prefix(Node *node) {
-	TypeKind ty = node->type->ty;
-	if (ty == PTR || ty == ARRAY) {
-		return 'r';
-	} else if (ty == INT) {
-		return 'e';
-	}
-}
-char pre;
 
 // レジスタ
 // RAX: 関数の返り値
@@ -96,8 +86,20 @@ void gen(Node *node) {
 			for (i=0; i<6 && node->fargs[i]; i++) {
 				printf("    mov rsp, rbp\n");
 				printf("    sub rsp, %d\n", node->fargs[i]->offset); // 変数の場所を確保
-				printf("    mov [rsp], %c%s\n", 
-					   prefix(node->fargs[i]), reg_arg[i]); // そこにレジスタの値を代入
+				switch (sizeoftype(node->fargs[i]->type)) {
+					case 8:
+						printf("    mov [rsp], %s\n", r64_arg[i]); // そこにレジスタの値を代入
+						break;
+					case 4:
+						printf("    mov [rsp], %s\n", r32_arg[i]);
+						break;
+					case 2:
+						printf("    mov [rsp], %s\n", r16_arg[i]);
+						break;
+					case 1:
+						printf("    mov [rsp], %s\n", r8_arg[i]);
+						break;
+				}
 			}
 			// stmts
 			i = 0;
@@ -117,7 +119,7 @@ void gen(Node *node) {
 				// 引数の評価
 				gen(node->fargs[i]);
 				// 引数を担当レジスタに設定
-				printf("    pop r%s\n", reg_arg[i]);
+				printf("    pop %s\n", r64_arg[i]);
 			}
 			// RSPを16の倍数にする 
 			printf("    mov r10, rdx\n");	  // 引数RDXを避難
@@ -132,6 +134,20 @@ void gen(Node *node) {
 			// call前に引いた分戻す
 			printf("    pop r10\n");
 			printf("    add rsp, r10\n");      
+			/*switch (onesizeoftype(node->type)) {
+				case 1:
+					printf("    push al\n");
+					break;
+				case 2:
+					printf("    push ax\n");
+					break;
+				case 4:
+					printf("    push eax\n");
+					break;
+				case 8:
+					printf("    push rax\n");
+					break;
+			} */
 			printf("    push rax\n");         // 関数の戻り値をストック
 			return;
 		case ND_NUM:
@@ -168,7 +184,12 @@ void gen(Node *node) {
 			return;
 		case ND_GVARDEF: return;
 		case ND_ASSIGN:
-			gen_lval(node->lhs);                                 // 左辺の変数のアドレスをpush
+			gen_lval(node->lhs);                               // 左辺の変数のアドレスをpush
+			if (node->isdef){
+				printf("    mov rax, rbp\n");
+				printf("    sub rax, %d\n", node->lhs->offset);
+				printf("    push rax\n");
+			}
 			gen(node->rhs);                                      // 右辺
 			printf("    pop rdi\n");                             // 代入式の右辺
 			printf("    pop rax\n");                             // 代入式の左辺（変数のアドレス）
