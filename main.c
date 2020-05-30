@@ -29,7 +29,7 @@ int main(int argc, char **argv){
 
     while (globals->next) {
         printf("%s:\n", globals->name);
-        printf("    .zero %lu\n", globals->offset);
+        printf("    .zero %lu\n", sizeoftype(globals->type));
         globals = globals->next;
     }
 

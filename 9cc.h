@@ -78,7 +78,6 @@ struct GVar {
     GVar *next;
     char *name;
     int len;
-    size_t offset;
     Type *type;
 };
 extern GVar *globals;
@@ -150,6 +149,7 @@ struct Node {
     Node *fargs[6];     // ND_FUNC* 関数の引数 (最大引数6個)
     Type *type;         // ND_LVARの型
     bool isdef;         // 変数の定義と代入が同時であるかどうか
+    LVar *locals;         // 関数毎に異なるoffsetを持つようにローカル変数を保持する
 };
 
 // エラーを報告する関数

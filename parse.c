@@ -111,9 +111,15 @@ LVar *set_lvar(Token *tok, Type *type) {
     lvar->name = tok->str;
     lvar->len = tok->len;
     lvar->type = type;
-    lvar->offset = locals->offset;
+    /*for (LVar *lv=lvar; lv; lv=lv->next) {
+        lv->offset += sizeoftype(type);
+    }*/
+    if (locals) {
+        lvar->offset = locals->offset + sizeoftype(type);
+    } else {
+        lvar->offset = sizeoftype(type);
+    }
     locals = lvar;
-    locals->offset += sizeoftype(type);
     return lvar;
 }
 
@@ -137,9 +143,7 @@ GVar *set_gvar(Token *tok, Type *type) {
     gvar->name = tok->str;
     gvar->len = tok->len;
     gvar->type = type;
-    gvar->offset = globals->offset;
     globals = gvar;
-    globals->offset += sizeoftype(type);
     return gvar;
 }
 
@@ -339,7 +343,6 @@ Node *primary() {
                     // グローバル変数で探す
                     gvar = find_gvar(tok); // 見つからなかったらここでエラー
                     node->kind = ND_GVARCALL;
-                    node->offset = gvar->offset;
                     node->type = gvar->type;
                     node->name = gvar->name;
                 }
@@ -594,7 +597,7 @@ Node *deffunc() {
     TypeKind tk;
     GVar *gvar;
     Node *node = calloc(1, sizeof(Node));
-    locals = calloc(1, sizeof(LVar)); // 関数毎にローカル変数を持つ
+    locals = calloc(1, sizeof(LVar));
     int i = 0;
 
     // ("int" | "char")
@@ -649,7 +652,6 @@ Node *deffunc() {
         read_array(node);
         gvar = set_gvar(tok, node->type);
         gvar->name = node->name;
-        node->offset = gvar->offset;
         if (consume_op("=")) {
             // 代入式
             Node *nod = calloc(1, sizeof(Node));

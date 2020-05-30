@@ -15,7 +15,10 @@ assert() {
 	    exit 1
     fi
 }
+assert 3 'int pd(int x, int y) { return x+y; } int main() { int x=1; int y=2; return pd(x,y); }'
 #assert 5 'int main() { int x=3; int y=5; return *(&x+1); }'
+
+#assert 3 'int main() { int *x[2]={1,2}; return x[0]+x[1]; }'
 assert 1 "int main() {int x=1; return x;}"
 assert 97 "int main() { return \"abc\"[0]; }"
 assert 98 "int main() { return \"abc\"[1]; }"
