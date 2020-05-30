@@ -133,6 +133,7 @@ typedef enum {
     ND_DEREF,   // * (参照外し)
     ND_ADDR,    // & (アドレス)
     ND_STR,     // string
+    ND_GVAR,
 } NodeKind;
 
 // Node
@@ -150,7 +151,7 @@ struct Node {
     int len;            // 名前の長さ
     Node *fargs[6];     // ND_FUNC* 関数の引数 (最大引数6個)
     Type *type;         // ND_LVARの型
-    bool isdef;         // 変数の定義と代入が同時であるかどうか
+    bool isdef;         // 変数の定義
 };
 
 // エラーを報告する関数

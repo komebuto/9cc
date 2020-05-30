@@ -192,15 +192,19 @@ void read_pointer(Node *node, TypeKind tk) {
 }
 
 void read_array(Node *node) {
-    Type *tmp;
+    Type head;
+    head.ptr_to = NULL;
+    Type *cur = &head;
     while (consume_op("[")) {
-        tmp = calloc(1, sizeof(Type));
+        Type *tmp = calloc(1, sizeof(Type));
         tmp->ty = ARRAY;
-        tmp->ptr_to = node->type;
         tmp->array_size = expect_number();
-        node->type = tmp;
+        cur->ptr_to = tmp;
+        cur = cur->ptr_to;
         expect_op("]");
     }
+    cur->ptr_to = node->type;
+    node->type = head.ptr_to; 
 }
 
 // 宣言された変数の型を調べて引数で渡されたNodeのtypeに格納
@@ -308,6 +312,7 @@ Node *primary() {
             // 変数の宣言
             // "int" ("*")* ident ("[" num "]")*
             define_type(node, INT);
+            node->isdef = true;
             if (consume_op("=")) {
                 Node *nod = calloc(1, sizeof(Node));
                 nod->kind = ND_ASSIGN;
@@ -319,6 +324,7 @@ Node *primary() {
             }
         } else if (consume(TK_CHAR)) {
             define_type(node, CHAR);
+            node->isdef = true;
             if (consume_op("=")) {
                 Node *nod = calloc(1, sizeof(Node));
                 nod->kind = ND_ASSIGN;
@@ -360,13 +366,15 @@ Node *primary() {
                     node->kind = ND_LVAR;
                     node->offset = lvar->offset;
                     node->type = lvar->type;
+                    node->isdef = false;
                 } else {
                     // グローバル変数で探す
                     gvar = find_gvar(tok); // 見つからなかったらここでエラー
-                    node->kind = ND_GVARCALL;
+                    node->kind = ND_GVAR;
                     node->type = gvar->type;
                     node->name = gvar->name;
                     node->len = gvar->len;
+                    node->isdef = false;
                 }
             }
         }
@@ -640,11 +648,12 @@ Node *deffunc() {
         node->offset = locals->offset;
     } else {
     // グローバル変数宣言
-        node->kind = ND_GVARDEF;
+        node->kind = ND_GVAR;
         read_array(node);
         gvar = set_gvar(tok, node->type);
         node->name = gvar->name;
         node->len = gvar->len;
+        node->isdef = true;
         if (consume_op("=")) {
             // 代入式
             Node *nod = calloc(1, sizeof(Node));

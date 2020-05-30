@@ -60,13 +60,13 @@ int getoffset(Node *node) {
 // 変数のアドレスの計算 スタックにpush
 void gen_lval(Node *node) {
 	if (node->kind == ND_LVAR) {
-		printf("    mov rax, rbp\n");				// 変数のポインタはベースポインタからの
-		printf("    sub rax, %d\n", invoffset(node));//->offset);  // オフセットとして得ている
-		printf("    push rax\n");			        // スタックにプッシュ
+		// ローカル変数のポインタはベースポインタからのオフセットとして得ている
+		printf("    lea rax, [rbp-%d]\n", invoffset(node));				
+		printf("    push rax\n");		// スタックにアドレスをプッシュ
 	} else if (node->kind == ND_DEREF) {
 		// * lhs
 		gen(node->lhs);
-	} else if (node->kind == ND_GVARCALL) {
+	} else if (node->kind == ND_GVAR) {
 		printf("    push offset %.*s\n", node->len, node->name);
 	} else {
 		error("代入の左辺が不正です");
@@ -95,8 +95,8 @@ void gen(Node *node) {
 			printf("    sub rsp, %d\n", node->offset);   // 関数内の変数の分だけスタックを伸ばす
 			// fargs
 			for (i=0; i<6 && node->fargs[i]; i++) {
-				printf("    mov rax, rbp\n");
-				printf("    sub rax, %d\n", invoffset(node->fargs[i]));//->offset); // 変数の場所を確保
+				printf("    lea rax, [rbp-%d]\n", invoffset(node->fargs[i]));
+				//printf("    sub rax, %d\n", invoffset(node->fargs[i]));//->offset); // 変数の場所を確保
 				switch (sizeoftype(node->fargs[i]->type)) {
 					case 8:
 						printf("    mov [rax], %s\n", r64_arg[i]); // そこにレジスタの値を代入
@@ -165,7 +165,9 @@ void gen(Node *node) {
 			printf("    push %d\n", node->val); // 数字の場合の値をpush
 			return;
 		case ND_LVAR:							           // 与えられた変数を値に置き換える
-		case ND_GVARCALL:
+		case ND_GVAR:
+			if (node->isdef) return;
+			else {
 			gen_lval(node);						           // 変数のアドレスをpush
 			if (node->type->ty != ARRAY) {
 				printf("    pop rax\n");			           // そのアドレスをraxにpop
@@ -193,14 +195,10 @@ void gen(Node *node) {
 				}
 			}
 			return;
+			}
 		case ND_GVARDEF: return;
 		case ND_ASSIGN:
 			gen_lval(node->lhs);                               // 左辺の変数のアドレスをpush
-			if (node->isdef){
-				printf("    mov rax, rbp\n");
-				printf("    sub rax, %d\n", invoffset(node->lhs));//->offset);
-				printf("    push rax\n");
-			}
 			gen(node->rhs);                                      // 右辺
 			printf("    pop rdi\n");                             // 代入式の右辺
 			printf("    pop rax\n");                             // 代入式の左辺（変数のアドレス）
