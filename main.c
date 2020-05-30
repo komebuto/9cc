@@ -28,7 +28,7 @@ int main(int argc, char **argv){
     printf(".data\n");
 
     while (globals->next) {
-        printf("%s:\n", globals->name);
+        printf("%.*s:\n", globals->len, globals->name);
         printf("    .zero %lu\n", sizeoftype(globals->type));
         globals = globals->next;
     }

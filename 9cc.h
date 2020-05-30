@@ -57,7 +57,7 @@ struct Type {
     size_t array_size;
 };
 
-size_t onesizeoftype(Type *type);
+size_t sizeofeltype(Type *type);
 size_t sizeoftype(Type *type);
 
 // Local variable
@@ -88,6 +88,7 @@ struct Func {
     char *name;
     int len;
     Type *type;
+    LVar *locals;
 };
 extern Func *functions;
 
@@ -146,10 +147,10 @@ struct Node {
     int val;            // ND_NUM
     int offset;         // ND_LVAR
     char *name;         // ND_FUNC* 関数名文字列
+    int len;            // 名前の長さ
     Node *fargs[6];     // ND_FUNC* 関数の引数 (最大引数6個)
     Type *type;         // ND_LVARの型
     bool isdef;         // 変数の定義と代入が同時であるかどうか
-    LVar *locals;         // 関数毎に異なるoffsetを持つようにローカル変数を保持する
 };
 
 // エラーを報告する関数
@@ -157,7 +158,7 @@ void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 
 // Tokenを読み進めながら内容を判定するための関数
-bool consume_op(char *op);
+Token *consume_op(char *op);
 void expect_op(char *op);
 int expect_number();
 bool at_eof();

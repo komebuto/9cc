@@ -2,6 +2,7 @@
 
 LVar *locals;
 GVar *globals;
+int offsetmax;
 unsigned long nbegin;
 unsigned long nelse;
 unsigned long nend;
@@ -10,6 +11,14 @@ char *r64_arg[6] = {"rdi", "rsi", "rdx", "rcx",  "r8",  "r9"};  // 64 bits
 char *r32_arg[6] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};  // 32 bits
 char *r16_arg[6] = { "di",  "si",  "dx",  "cx", "r8w", "r9w"};  // 16 bits
 char *r8_arg[6]  = {"dil", "sil",  "dl",  "cl", "r8b", "r9b"};  //  8 bits
+
+int invoffset(Node *node) {
+	//return offsetmax - ( node->offset - sizeoftype(node->type) );
+	return node->offset;
+}
+int getoffset(Node *node) {
+	return node->offset;
+}
 
 // レジスタ
 // RAX: 関数の返り値
@@ -52,13 +61,13 @@ char *r8_arg[6]  = {"dil", "sil",  "dl",  "cl", "r8b", "r9b"};  //  8 bits
 void gen_lval(Node *node) {
 	if (node->kind == ND_LVAR) {
 		printf("    mov rax, rbp\n");				// 変数のポインタはベースポインタからの
-		printf("    sub rax, %d\n", node->offset);  // オフセットとして得ている
+		printf("    sub rax, %d\n", invoffset(node));//->offset);  // オフセットとして得ている
 		printf("    push rax\n");			        // スタックにプッシュ
 	} else if (node->kind == ND_DEREF) {
 		// * lhs
 		gen(node->lhs);
 	} else if (node->kind == ND_GVARCALL) {
-		printf("    push offset %s\n", node->name);
+		printf("    push offset %.*s\n", node->len, node->name);
 	} else {
 		error("代入の左辺が不正です");
 	}
@@ -75,29 +84,31 @@ void gen(Node *node) {
 
 	switch (node->kind) {
 		case ND_FUNCDEF:
+			//offsetmax = node->offset;
 			// name ( fargs[6] ) { stmts[100] }
 			// プロローグ
     		// 変数の領域を確保する
-			printf(".globl %s\n", node->name);
-			printf("%s:\n", node->name);  // name
+			printf(".globl %.*s\n", node->len, node->name);
+			printf("%.*s:\n", node->len, node->name);  // name
     		printf("    push rbp\n");       // 呼び出し元の関数のベースポインタをpush
     		printf("    mov rbp, rsp\n");   // そのベースポインタを指すようにRBPを変更
+			printf("    sub rsp, %d\n", node->offset);   // 関数内の変数の分だけスタックを伸ばす
 			// fargs
 			for (i=0; i<6 && node->fargs[i]; i++) {
-				printf("    mov rsp, rbp\n");
-				printf("    sub rsp, %d\n", node->fargs[i]->offset); // 変数の場所を確保
+				printf("    mov rax, rbp\n");
+				printf("    sub rax, %d\n", invoffset(node->fargs[i]));//->offset); // 変数の場所を確保
 				switch (sizeoftype(node->fargs[i]->type)) {
 					case 8:
-						printf("    mov [rsp], %s\n", r64_arg[i]); // そこにレジスタの値を代入
+						printf("    mov [rax], %s\n", r64_arg[i]); // そこにレジスタの値を代入
 						break;
 					case 4:
-						printf("    mov [rsp], %s\n", r32_arg[i]);
+						printf("    mov [rax], %s\n", r32_arg[i]);
 						break;
 					case 2:
-						printf("    mov [rsp], %s\n", r16_arg[i]);
+						printf("    mov [rax], %s\n", r16_arg[i]);
 						break;
 					case 1:
-						printf("    mov [rsp], %s\n", r8_arg[i]);
+						printf("    mov [rax], %s\n", r8_arg[i]);
 						break;
 				}
 			}
@@ -130,11 +141,11 @@ void gen(Node *node) {
 			printf("    sub rsp, rdx\n");     // 余りをrspから引いて16の倍数とする
 			printf("    push rdx\n");         // 余りをストック
 			printf("    mov rdx, r10\n");     // 避難した第三引数RDXを戻す
-			printf("    call %s\n", node->name); // call func()
+			printf("    call %.*s\n", node->len, node->name); // call func()
 			// call前に引いた分戻す
 			printf("    pop r10\n");
 			printf("    add rsp, r10\n");      
-			/*switch (onesizeoftype(node->type)) {
+			/*switch (sizeofeltype(node->type)) {
 				case 1:
 					printf("    push al\n");
 					break;
@@ -158,7 +169,7 @@ void gen(Node *node) {
 			gen_lval(node);						           // 変数のアドレスをpush
 			if (node->type->ty != ARRAY) {
 				printf("    pop rax\n");			           // そのアドレスをraxにpop
-				switch (onesizeoftype(node->type)) {		   // raxアドレスの値をその型のサイズに合わせてロード
+				switch (sizeofeltype(node->type)) {		   // raxアドレスの値をその型のサイズに合わせてロード
 					case 8: 
 						printf("    mov rax, [rax]\n");
 						break;
@@ -187,13 +198,13 @@ void gen(Node *node) {
 			gen_lval(node->lhs);                               // 左辺の変数のアドレスをpush
 			if (node->isdef){
 				printf("    mov rax, rbp\n");
-				printf("    sub rax, %d\n", node->lhs->offset);
+				printf("    sub rax, %d\n", invoffset(node->lhs));//->offset);
 				printf("    push rax\n");
 			}
 			gen(node->rhs);                                      // 右辺
 			printf("    pop rdi\n");                             // 代入式の右辺
 			printf("    pop rax\n");                             // 代入式の左辺（変数のアドレス）
-			switch (onesizeoftype(node->lhs->type)) {
+			switch (sizeofeltype(node->lhs->type)) {
 				case 8: 
 					printf("    mov [rax], rdi\n");
 					break;
@@ -332,7 +343,7 @@ void gen(Node *node) {
 		}
 	    break;
 	case ND_SUB:
-		if (node->type->ty == INT) {
+		if (node->type->ty == INT || node->type->ty == CHAR) {
 			printf("    sub rax, rdi\n");
 		} else {
 			printf("    imul rdi, %lu\n", sizeoftype(node->type->ptr_to));
