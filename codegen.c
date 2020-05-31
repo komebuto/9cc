@@ -168,12 +168,17 @@ void gen(Node *node) {
 		case ND_LVAR:							           // 与えられた変数を値に置き換える
 		case ND_GVAR:
 			if (node->isdef) {
-				if (node->def){ gen(node->def); }
+				if (node->nextdef) gen(node->nextdef);
 				return;
-			}
-			else {
-			gen_lval(node);						           // 変数のアドレスをpush
-			if (node->type->ty != ARRAY) {
+			} else {
+				gen_lval(node);						     // 変数のアドレスをpush
+				if (node->type->ty == ARRAY) return;     // 配列が呼ばれたときはそのアドレスを返せばよいのでそのまま
+				/*if (node->type->ty == PTR) {
+					for (Type *t=node->type; t->ptr_to->ty==PTR; t=t->ptr_to) 
+						printf("    push rsp\n");
+					printf("    pop rax\n");
+					return;
+				}*/
 				printf("    pop rax\n");			           // そのアドレスをraxにpop
 				switch (sizeofeltype(node->type)) {		   // raxアドレスの値をその型のサイズに合わせてロード
 					case 8: 
@@ -192,13 +197,7 @@ void gen(Node *node) {
 						break;
 				}
 				printf("    push rax\n");		               // ロードされた値をpush
-			} else {
-				for (tmptype = node->type->ptr_to; tmptype->ty == ARRAY; tmptype = tmptype->ptr_to){
-					printf("    mov rax, rsp\n");
-					printf("    push rax\n");
-				}
-			}
-			return;
+				return;
 			}
 		case ND_ASSIGN:
 			gen_lval(node->lhs);                               // 左辺の変数のアドレスをpush
@@ -331,15 +330,16 @@ void gen(Node *node) {
 			// INT/CHAR + INT/CHAR
 			printf("    add rax, rdi\n");
 		} else {
-			if (node->lhs->type->ty == INT || node->type->ty == CHAR) {
-				// INT/CHAR + OTHERtype
-				printf("    imul rax, %lu\n", sizeoftype(node->type->ptr_to));
-				printf("    add rdi, rax\n");
-				printf("    mov rax, rdi\n");
-			} else {
-				// OTHERtype + INT/CHAR
-				printf("    imul rdi, %lu\n", sizeoftype(node->type->ptr_to));
+			if (node->lhs->type->ty == INT || node->lhs->type->ty == CHAR) {
+				// INT/CHAR + PTR
+				printf("    imul rax, %lu\n", sizeoftype(node->rhs->type->ptr_to));
 				printf("    add rax, rdi\n");
+			} else if (node->rhs->type->ty == INT || node->rhs->type->ty == CHAR) {
+				// OTHERtype + INT/CHAR
+				printf("    imul rdi, %lu\n", sizeoftype(node->lhs->type->ptr_to));
+				printf("    add rax, rdi\n");
+			} else {
+				error("足し算の型が不正です");
 			}
 		}
 	    break;
