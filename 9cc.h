@@ -79,6 +79,8 @@ struct GVar {
     char *name;
     int len;
     Type *type;
+    bool isassigned;  // 代入されているか
+    int val;
 };
 extern GVar *globals;
 
@@ -149,6 +151,7 @@ struct Node {
     Node *fargs[6];     // ND_FUNC* 関数の引数 (最大引数6個)
     Type *type;         // ND_LVARの型
     bool isdef;         // 変数の定義
+    Node *def;          // 連続で定義があるときに使う
 };
 
 // エラーを報告する関数

@@ -168,7 +168,7 @@ void gen(Node *node) {
 		case ND_LVAR:							           // 与えられた変数を値に置き換える
 		case ND_GVAR:
 			if (node->isdef) {
-				if (node->lhs) gen(node->lhs);
+				if (node->def){ gen(node->def); }
 				return;
 			}
 			else {

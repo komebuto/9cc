@@ -17,7 +17,10 @@ assert() {
 }
 #assert 5 'int main() { int x=3; int y=5; return *(&x+1); }'
 assert 3 'int pd(int x, int y) { return x+y; } int main() { int x=1; int y=2; return pd(x,y); }'
-
+assert 6 "int x, y, z; int main() { x=1; y=2; z=3; return x+y+z; }"
+assert 2 "int x=2; int main() { return x; }"
+assert 5 "int x=2, y=3; int main() { return x+y; }"
+assert 6 "int x=4; char y=2; int main() { return x+y; }"
 
 #assert 3 'int main() { int *x[2]={1,2}; return x[0]+x[1]; }'
 assert 1 "int main() {int x=1; return x;}"

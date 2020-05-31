@@ -24,15 +24,6 @@ Token *consume_op(char *s) {
     }
 }
 
-TypeKind consume_eltype(Token *token) {
-    if (consume(TK_INT)) {
-        return INT;
-    } else if (consume(TK_CHAR)) {
-        return CHAR;
-    } else
-        return false;
-}
-
 void expect(char *s, TokenKind TK) {
     if (token->kind != TK ||
         strlen(s) != token->len ||
@@ -136,12 +127,14 @@ GVar *find_gvar(Token *tok) {
     error("%.*s: 定義されていない変数です.", tok->len, tok->str);
 }
 
-GVar *set_gvar(Token *tok, Type *type) {
+GVar *set_gvar(Token *tok, Type *type, bool isass, int ass) {
     GVar *gvar = calloc(1, sizeof(GVar));
     gvar->next = globals;
     gvar->name = tok->str;
     gvar->len = tok->len;
     gvar->type = type;
+    gvar->isassigned = isass;
+    gvar->val = ass;
     globals = gvar;
     return gvar;
 }
@@ -177,21 +170,7 @@ bool at_eof() {
     return token->kind == TK_EOF;
 }
 
-// 宣言された変数の型の前半部分を読む
-// tk = INT or CHAR
-// ("int" | "char") ("*")*
-void read_pointer(Node *node, TypeKind tk) {
-    Type *types = calloc(1, sizeof(Type));
-    node->type = types;
-    while (consume_op("*")) {
-        types->ty = PTR;
-        types->ptr_to = calloc(1, sizeof(Type));
-        types = types->ptr_to;
-    }
-    types->ty = tk;
-}
-
-void read_array(Node *node) {
+Type *read_array2(Type *type) {
     Type head;
     head.ptr_to = NULL;
     Type *cur = &head;
@@ -203,22 +182,20 @@ void read_array(Node *node) {
         cur = cur->ptr_to;
         expect_op("]");
     }
-    cur->ptr_to = node->type;
-    node->type = head.ptr_to; 
+    cur->ptr_to = type;
+    return head.ptr_to; 
 }
-
+Type *read_pointer2(TypeKind tk);
 // 宣言された変数の型を調べて引数で渡されたNodeのtypeに格納
 void define_type(Node *node, TypeKind tk) {
     Token *tok;
     LVar *lvar;
-    Type *tmp;
-    Type *types = calloc(1, sizeof(Type));
     Node *nod;
     
-    read_pointer(node, tk);
+    Type *type = read_pointer2(tk);
     tok = consume(TK_IDENT);
     if (!tok) error("識別子として不正です");
-    read_array(node);
+    node->type = read_array2(type);
     lvar = set_lvar(tok, node->type);
     node->offset = lvar->offset;
     node->kind = ND_LVAR;
@@ -298,7 +275,8 @@ Node *readdef(TypeKind tk) {
     node->len = tok->len;
     node->kind = ND_LVAR;
     node->isdef = true;
-    read_array(node);
+    type = node->type;
+    node->type = read_array2(type);
     LVar *lvar = set_lvar(tok, node->type);
     node->name = lvar->name;
     node->len = lvar->len;
@@ -320,6 +298,7 @@ Node *readdef(TypeKind tk) {
            | ("char" | "int") ("*")* ident ("[" num "]")* 変数名 定義 (readdef)
 */
 Node *primary() {
+    /*
     Token *tok;
     TypeKind tk;
     Node *node;
@@ -327,6 +306,10 @@ Node *primary() {
     GVar *gvar;
     Str *str;
     Func *func;
+    */
+    Func *func;
+    Token *tok;
+    Node *node;
     int i;
     if (consume_op("(")) {
     // "(" expr ")"
@@ -337,7 +320,7 @@ Node *primary() {
         if (is_number()) {
             node = new_node_num(expect_number());
         } else if (tok = consume(TK_STR)) {
-            str = calloc(1, sizeof(Str));
+            Str *str = calloc(1, sizeof(Str));
             str->next = strings;
             str->name = tok->str;
             str->len = tok->len + 1;
@@ -382,7 +365,7 @@ Node *primary() {
                 //return node;
             } else {
                 // 宣言無しの変数
-                lvar = find_lvar(tok); // 宣言済みかの確認
+                LVar *lvar = find_lvar(tok); // 宣言済みかの確認
                 if (lvar) {
                     // ローカル変数
                     node->kind = ND_LVAR;
@@ -391,7 +374,7 @@ Node *primary() {
                     node->isdef = false;
                 } else {
                     // グローバル変数で探す
-                    gvar = find_gvar(tok); // 見つからなかったらここでエラー
+                    GVar *gvar = find_gvar(tok); // 見つからなかったらここでエラー
                     node->kind = ND_GVAR;
                     node->type = gvar->type;
                     node->name = gvar->name;
@@ -399,36 +382,44 @@ Node *primary() {
                     node->isdef = false;
                 }
             }
-        } /*else if (tk = eltype()) {
-            for (node = readdef(tk); consume_op(","); )
-                node->lhs = readdef(tk);
-        }*/ else if (consume(TK_INT)) {
+        } else {
+            Node head;
+            Node *curnode = &head;
             // 変数の宣言
-            // "int" ("*")* ident ("[" num "]")*
-            define_type(node, INT);
-            node->isdef = true;
-            if (consume_op("=")) {
-                Node *nod = calloc(1, sizeof(Node));
-                nod->kind = ND_ASSIGN;
-                nod->lhs = node;
-                nod->rhs = assign();
-                nod->isdef = true;
-                nod->type = node->type;
-                node = nod;
+            // ("int" | "char") ("*")* ident ("[" num "]")*
+            TokenKind tk = eltype();
+            for (;;) {
+                // ("*")*
+                Type *type = read_pointer2(tk);
+
+                // ident
+                Token *tok = consume(TK_IDENT);
+                if (!tok) error("識別子として不正です");
+
+                // ("[" num "]")*
+                //read_array(node);
+                type = read_array2(type);
+                LVar *lvar = set_lvar(tok, type);
+                node->type = type;
+                node->offset = lvar->offset;
+                node->kind = ND_LVAR;
+                node->isdef = true;
+
+                //define_type(node, tk);
+                if (consume_op("=")) {
+                    Node *nod = calloc(1, sizeof(Node));
+                    nod->kind = ND_ASSIGN;
+                    nod->lhs = node;
+                    nod->rhs = assign();
+                    nod->isdef = true;
+                    nod->type = node->type;
+                    node = nod;
+                }
+
+                if (!consume_op(",")) {  break; }
+                else { node->lhs = calloc(1, sizeof(Node)); node = node->lhs; }
             }
-        } else if (consume(TK_CHAR)) {
-            define_type(node, CHAR);
-            node->isdef = true;
-            if (consume_op("=")) {
-                Node *nod = calloc(1, sizeof(Node));
-                nod->kind = ND_ASSIGN;
-                nod->lhs = node;
-                nod->rhs = assign();
-                nod->isdef = true;
-                nod->type = node->type;
-                node = nod;
-            }
-        } 
+        }
     }
     while (consume_op("[")) {
         // node [add] == *(node + add)
@@ -650,17 +641,15 @@ Node *stmt() {
            | ident ( "=" assign )? ("," defvar | ";")
            | ident ("[" num "]")* ("," defvar | ";")
 */
-void defglobal(Node *node, Token *tok);
 Node *defvar(TypeKind tk) {
     //TypeKind tk;
     GVar *gvar;
     Node *node = calloc(1, sizeof(Node));
-    locals = calloc(1, sizeof(LVar));
     int i = 0;
     int funcoffset = 0;
 
     // ("*")*
-    read_pointer(node, tk);
+    Type *type = read_pointer2(tk);
     // ident
     Token *tok = consume(TK_IDENT);
     if (!tok) error("識別子名が不正です");
@@ -669,8 +658,10 @@ Node *defvar(TypeKind tk) {
 
     // 関数宣言
     if (consume_op("(")) {
+        locals = calloc(1, sizeof(LVar));
         node->kind = ND_FUNCDEF;
-        set_func(tok, node->type);
+        node->type = type;
+        set_func(tok, type);
         // 関数の引数(最大6個まで)
         for (i=0; i<6; i++) {
             if (consume(TK_INT)) tk = INT;
@@ -698,37 +689,31 @@ Node *defvar(TypeKind tk) {
         }
         // 関数内でのローカル変数の分のスペース
     } else {
-        defglobal(node, tok);
+        // グローバル変数
+        GVar *gvar;
+        bool isass;
+        int ass;
+        node->kind = ND_GVAR;
+        type = read_array2(type);
+        if (consume_op("=")) {
+            isass = true;
+            ass = expect_number();
+        }
+        gvar = set_gvar(tok, type, isass, ass);
+        node->type = type;
+        node->name = gvar->name;
+        node->len = gvar->len;
+        node->isdef = true;
     }
-    if (consume_op(",")) node->lhs = defvar(tk);
+    if (consume_op(",")) node->def = defvar(tk);
     else expect_op(";");
     return node;
-}
-
-void defglobal(Node *node, Token *tok) {
-    GVar *gvar;
-    node->kind = ND_GVAR;
-    read_array(node);
-    gvar = set_gvar(tok, node->type);
-    node->name = gvar->name;
-    node->len = gvar->len;
-    node->isdef = true;
-    if (consume_op("=")) {
-        // 代入式
-        Node *nod = calloc(1, sizeof(Node));
-        nod->kind = ND_ASSIGN;
-        nod->lhs = node;
-        nod->rhs = assign();
-        node = nod;
-    }
 }
 
 // defeltype = ("int" | "char") defvar
 Node *defeltype() {
     TypeKind tk;
-    if (consume(TK_INT)) tk = INT; 
-    else if (consume(TK_CHAR)) tk = CHAR; 
-    else error("eltypeが不正です.");
+    tk = eltype();
     return defvar(tk);
 }
 
