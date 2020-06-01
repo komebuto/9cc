@@ -14,7 +14,8 @@ char *r8_arg[6]  = {"dil", "sil",  "dl",  "cl", "r8b", "r9b"};  //  8 bits
 
 int invoffset(Node *node) {
 	//return offsetmax - ( node->offset - sizeoftype(node->type) );
-	return node->offset;
+	//if (node->lvar) return (*(node->lvar))->offset;
+	return *(node->offptr);
 }
 int getoffset(Node *node) {
 	return node->offset;

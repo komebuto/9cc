@@ -111,9 +111,14 @@ LVar *set_lvar(Token *tok, Type *type) {
     lvar->name = tok->str;
     lvar->len = tok->len;
     lvar->type = type;
-    lvar->offset = locals->offset + sizeoftype(type);
-    locals = lvar;
-    return lvar;
+    LVar *head = lvar;
+    for (;;) {
+        lvar->offset += sizeoftype(type);
+        if (!lvar->next) break;
+        lvar = lvar->next;
+    }
+    locals = head;
+    return locals;
 }
 
 // 変数をグローバル変数の中から名前で検索。
@@ -198,6 +203,7 @@ void define_type(Node *node, TypeKind tk) {
     node->type = read_array2(type);
     lvar = set_lvar(tok, node->type);
     node->offset = lvar->offset;
+    node->offptr = &(lvar->offset);
     node->kind = ND_LVAR;
 }
 
@@ -355,8 +361,6 @@ Node *primary() {
                 // 関数名の文字列
                 node->name = tok->str;
                 node->len = tok->len;
-                node->type = calloc(1, sizeof(Type));
-                node->type->ty = INT;    ////////// 現在の所int型の関数のみ
                 if (!consume_op(")")) {
                     // 引数あり
                     i = 0;
@@ -376,6 +380,7 @@ Node *primary() {
                     // ローカル変数
                     node->kind = ND_LVAR;
                     node->offset = lvar->offset;
+                    node->offptr = &(lvar->offset);
                     node->type = lvar->type;
                     node->isdef = false;
                 } else {
@@ -410,6 +415,7 @@ Node *primary() {
                 LVar *lvar = set_lvar(tok, type);
                 tmp->type = type;
                 tmp->offset = lvar->offset;
+                tmp->offptr = &(lvar->offset);
                 tmp->kind = ND_LVAR;
                 tmp->isdef = true;
 
@@ -640,16 +646,25 @@ Node *stmt() {
     }
 }
 
+void setoffset() {
+    int max = locals->offset;
+    for (;;) {
+        locals->offset = max - locals->offset + sizeoftype(locals->type);
+        if (!locals->next) break;
+        locals = locals->next;
+    }
+}
+
 /* defvar = ident "(" [("int" | "char") ident ("," ("int" | "char") ident)* ]? ")" "{" stmt* "}"
            | ident ( "=" assign )? ("," defvar | ";")
            | ident ("[" num "]")* ("," defvar | ";")
 */
 Node *defvar(TypeKind tk) {
     //TypeKind tk;
+    LVar *lvar;
     GVar *gvar;
     Node *node = calloc(1, sizeof(Node));
     int i = 0;
-    int funcoffset = 0;
 
     // ("*")*
     Type *type = read_pointer2(tk);
@@ -673,7 +688,6 @@ Node *defvar(TypeKind tk) {
             node->fargs[i] = calloc(1, sizeof(Node));
             node->fargs[i]->kind = ND_LVAR;
             define_type(node->fargs[i], tk);
-            //funcoffset = node->fargs[i]->offset;
             if (!consume_op(",")) break; 
         }
         expect_op(")");
@@ -687,7 +701,10 @@ Node *defvar(TypeKind tk) {
                     expect_op("}");
                 }
             }
-            node->offset = locals->offset;
+            for (lvar=locals; lvar->next; lvar=lvar->next);
+            node->offset = lvar->offset;
+            node->offptr = &(locals->offset);
+            //setoffset();
             return node;
         }
         // 関数内でのローカル変数の分のスペース

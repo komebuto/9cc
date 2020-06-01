@@ -152,6 +152,8 @@ struct Node {
     Type *type;         // ND_LVARの型
     bool isdef;         // 変数の定義
     Node *nextdef;      // 連続で定義があるときに使う
+    LVar **lvar;
+    int *offptr;
 };
 
 // エラーを報告する関数
