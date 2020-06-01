@@ -10,11 +10,14 @@
 .quad n : 64ビットのnという値を格納する領域を確保
 .align 4 : 4バイトごとの境界に合わせる（効率が上がる(?)）
 */
+
 unsigned long i;
 char *user_input;
 Token *token;
 LVar *locals;
+GVar *globals;
 Node *code[100];
+Str *strings;
 
 int main(int argc, char **argv){
     if (argc != 2) error("引数の個数が正しくありません");

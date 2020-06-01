@@ -1,12 +1,13 @@
 #include "9cc.h"
 
-LVar *locals;
-GVar *globals;
-int offsetmax;
+extern LVar *locals;
+extern GVar *globals;
+
 unsigned long nbegin;
 unsigned long nelse;
 unsigned long nend;
 unsigned long nrsp;
+int offsetmax;
 char *r64_arg[6] = {"rdi", "rsi", "rdx", "rcx",  "r8",  "r9"};  // 64 bits
 char *r32_arg[6] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};  // 32 bits
 char *r16_arg[6] = { "di",  "si",  "dx",  "cx", "r8w", "r9w"};  // 16 bits

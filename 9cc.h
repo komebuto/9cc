@@ -174,6 +174,8 @@ bool at_eof();
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
 Node *new_node_num(int val);
 
+extern Node *code[100];
+
 // パーサーで使う関数
 void program(void);
 Node *func(void);

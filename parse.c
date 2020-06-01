@@ -1,9 +1,9 @@
 #include "9cc.h"
 
 Func *functions;
-Str *strings;
-Node *code[100];
-Token *token;
+extern Str *strings;
+extern Node *code[100];
+extern Token *token;
 
 Token *consume(TokenKind TK) {
     if(token->kind != TK)
