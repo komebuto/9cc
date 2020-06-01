@@ -58,7 +58,7 @@ int getoffset(Node *node) {
 // jmp .L[a~Z]XXX: .L[a~Z]XXX: までジャンプ (XXXは通し番号)
 
 // 変数のアドレスの計算 スタックにpush
-void gen_lval(Node *node) {
+void gen_addr(Node *node) {
 	if (node->kind == ND_LVAR) {
 		// ローカル変数のポインタはベースポインタからのオフセットとして得ている
 		printf("    lea rax, [rbp-%d]\n", invoffset(node));				
@@ -71,6 +71,22 @@ void gen_lval(Node *node) {
 	} else {
 		error("代入の左辺が不正です");
 	}
+}
+
+// スタックトップがポイントしている要素をロード
+void load(Node *node) {
+	if (node->type->ty == ARRAY) {
+		return;
+	}
+	printf("    pop rax\n");
+	switch (sizeofeltype(node->type)) {
+		case 1: printf("    movsx rax, byte ptr [rax]\n"); break;
+		case 2: printf("    movsx rax, word ptr [rax]\n"); break;
+		case 4: printf("    movsx rax, dword ptr [rax]\n"); break;
+		case 8: printf("    mov rax, [rax]\n"); break;
+	}
+	printf("    push rax\n");
+	return;
 }
 
 // コードジェネレータ
@@ -171,37 +187,13 @@ void gen(Node *node) {
 				if (node->nextdef) gen(node->nextdef);
 				return;
 			} else {
-				gen_lval(node);						     // 変数のアドレスをpush
-				if (node->type->ty == ARRAY) return;     // 配列が呼ばれたときはそのアドレスを返せばよいのでそのまま
-				/*if (node->type->ty == PTR) {
-					for (Type *t=node->type; t->ptr_to->ty==PTR; t=t->ptr_to) 
-						printf("    push rsp\n");
-					printf("    pop rax\n");
-					return;
-				}*/
-				printf("    pop rax\n");			           // そのアドレスをraxにpop
-				switch (sizeofeltype(node->type)) {		   // raxアドレスの値をその型のサイズに合わせてロード
-					case 8: 
-						printf("    mov rax, [rax]\n");
-						break;
-					case 4: 
-						printf("    mov eax, [rax]\n");
-						break;
-					case 2: 
-						printf("    mov ax, [rax]\n");
-						printf("    movzw rax, ax\n");
-						break;
-					case 1: 
-						printf("    mov al, [rax]\n");
-						printf("    movzb rax, al\n");
-						break;
-				}
-				printf("    push rax\n");		               // ロードされた値をpush
+				gen_addr(node);		// 変数のアドレスをpush
+				load(node);			// そのアドレスをロードしてpush
 				return;
 			}
 		case ND_ASSIGN:
-			gen_lval(node->lhs);                               // 左辺の変数のアドレスをpush
-			gen(node->rhs);                                      // 右辺
+			gen_addr(node->lhs);                          // 左辺の変数のアドレスをpush
+			gen(node->rhs);                               // 右辺
 			printf("    pop rdi\n");                             // 代入式の右辺
 			printf("    pop rax\n");                             // 代入式の左辺（変数のアドレス）
 			switch (sizeofeltype(node->lhs->type)) {
@@ -223,7 +215,7 @@ void gen(Node *node) {
 			printf("    push rdi\n");                            // 代入式全体の評価値をpush
 			return;
 		case ND_RETURN:
-		// "return" rhs
+		// "return" lhs
 			gen(node->lhs);
 			printf("    pop rax\n"); // lhsの計算結果をpop RAXにセット
 			printf("    mov rsp, rbp\n");
@@ -303,13 +295,11 @@ void gen(Node *node) {
 		case ND_DEREF:
 			// * lhs
 			gen(node->lhs);
-			printf("    pop rax\n");
-			printf("    mov rax, [rax]\n");
-			printf("    push rax\n");
+			load(node);
 			return;
 		case ND_ADDR:
 			// & lhs
-			gen_lval(node->lhs);
+			gen_addr(node->lhs);
 			return;
 		case ND_STR:
 			printf("    push offset .L.data.%d\n", node->val);

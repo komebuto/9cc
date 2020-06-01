@@ -304,18 +304,6 @@ Node *readdef(TypeKind tk) {
     return node;
 }
 
-Node *a2p(Node *node) {
-    if (node->type->ty == ARRAY) {
-        Node *nd = node;
-        Type type;
-        //memcpy(&type, (node->type), sizeof(node->type));
-        //nd->type = &type;
-        nd->type->ty = PTR;
-        return nd;
-    } 
-    return node;
-}
-
 /* primary = "(" expr ")" ( "[" add "]" )?
            | num ( "[" add "]" )?
            | string ( "[" add "]" )?
@@ -388,17 +376,13 @@ Node *primary() {
                     // ローカル変数
                     node->kind = ND_LVAR;
                     node->offset = lvar->offset;
-                    /*memcpy(&type, lvar->type, sizeof(lvar->type));
-                    node->type = &type;
-                    */node->type = lvar->type;
+                    node->type = lvar->type;
                     node->isdef = false;
                 } else {
                     // グローバル変数で探す
                     GVar *gvar = find_gvar(tok); // 見つからなかったらここでエラー
                     node->kind = ND_GVAR;
-                    /*memcpy(&type, gvar->type, sizeof(gvar->type));
-                    node->type = &type;
-                    */node->type = gvar->type;
+                    node->type = gvar->type;
                     node->name = gvar->name;
                     node->len = gvar->len;
                     node->isdef = false;
