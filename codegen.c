@@ -60,6 +60,7 @@ int getoffset(Node *node) {
 // 変数のアドレスの計算 スタックにpush
 void gen_addr(Node *node) {
 	if (node->kind == ND_LVAR) {
+		if (node->isdef && node->nextdef) gen(node->nextdef);
 		// ローカル変数のポインタはベースポインタからのオフセットとして得ている
 		printf("    lea rax, [rbp-%d]\n", invoffset(node));				
 		printf("    push rax\n");		// スタックにアドレスをプッシュ
@@ -322,11 +323,13 @@ void gen(Node *node) {
 		} else {
 			if (node->lhs->type->ty == INT || node->lhs->type->ty == CHAR) {
 				// INT/CHAR + PTR
-				printf("    imul rax, %lu\n", sizeoftype(node->rhs->type->ptr_to));
+				size_t n = sizeoftype(node->rhs->type->ptr_to);
+				printf("    imul rax, %lu\n", n);
 				printf("    add rax, rdi\n");
 			} else if (node->rhs->type->ty == INT || node->rhs->type->ty == CHAR) {
 				// OTHERtype + INT/CHAR
-				printf("    imul rdi, %lu\n", sizeoftype(node->lhs->type->ptr_to));
+				size_t n = sizeoftype(node->lhs->type->ptr_to);
+				printf("    imul rdi, %lu\n", n);
 				printf("    add rax, rdi\n");
 			} else {
 				error("足し算の型が不正です");
@@ -336,9 +339,17 @@ void gen(Node *node) {
 	case ND_SUB:
 		if (node->type->ty == INT || node->type->ty == CHAR) {
 			printf("    sub rax, rdi\n");
-		} else {
-			printf("    imul rdi, %lu\n", sizeoftype(node->type->ptr_to));
+		} else if (node->lhs->type->ty == PTR && node->rhs->type->ty == PTR) {
 			printf("    sub rax, rdi\n");
+			printf("    cqo\n");
+			printf("    mov rdi, %ld\n", sizeoftype(node->type->ptr_to));
+			printf("    idiv rdi\n");  // 8 = sizeof(PTR)
+		} else if (node->rhs->type->ty == INT || node->rhs->type->ty == CHAR) {
+			size_t n = sizeoftype(node->lhs->type->ptr_to);
+			printf("    imul rdi, %lu\n", n);
+			printf("    sub rax, rdi\n");
+		} else {
+			error("引き算の型が不正です");
 		}
 	    break;
 	case ND_MUL:

@@ -391,11 +391,12 @@ Node *primary() {
         } else {
             Node head;
             Node *curnode = &head;
+            Node *tmp;
             // 変数の宣言
             // ("int" | "char") ("*")* ident ("[" num "]")*
             TokenKind tk = eltype();
             for (;;) {
-                Node *tmp = calloc(1, sizeof(Node));
+                tmp = calloc(1, sizeof(Node));
                 // ("*")*
                 Type *type = read_pointer2(tk);
 
