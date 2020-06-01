@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <errno.h>
 #include <ctype.h>
 #include <stdio.h> 
 #include <stdbool.h>
@@ -10,6 +12,7 @@ extern unsigned long nelse;
 extern unsigned long nend;
 extern unsigned long nrsp;
 extern char *user_input;
+extern char *filename;
 extern char *reg_arg[6];    // 関数の引数用のレジスタ名
 
 // TokenKind
@@ -108,6 +111,7 @@ extern Str *strings;
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 // user_inputをトークナイズして先頭のトークンをtokenに代入
 void tokenize(char *p);
+void tokenizefile(char *path);
 
 // NodeKind
 typedef enum {

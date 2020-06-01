@@ -1,5 +1,35 @@
 #include "9cc.h"
 
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+
+// 指定されたファイルの内容を返す
+char *read_file(char *path) {
+  // ファイルを開く
+  FILE *fp = fopen(path, "r");
+  if (!fp)
+    error("cannot open %s: %s", path, strerror(errno));
+
+  // ファイルの長さを調べる
+  if (fseek(fp, 0, SEEK_END) == -1)
+    error("%s: fseek: %s", path, strerror(errno));
+  size_t size = ftell(fp);
+  if (fseek(fp, 0, SEEK_SET) == -1)
+    error("%s: fseek: %s", path, strerror(errno));
+
+  // ファイル内容を読み込む
+  char *buf = calloc(1, size + 2);
+  fread(buf, size, 1, fp);
+
+  // ファイルが必ず"\n\0"で終わっているようにする
+  if (size == 0 || buf[size - 1] != '\n')
+    buf[size++] = '\n';
+  buf[size] = '\0';
+  fclose(fp);
+  return buf;
+}
+
 // 与えられた文字がアルファベット、数字、_(アンダースコア)の時真を返す
 int is_alnum(char c) {
 	return isalnum(c) || (c == '_');
@@ -163,3 +193,7 @@ void tokenize(char *p) {
 	return;
 }
 
+void tokenizefile(char *path) {
+	tokenize(read_file(path));
+	return;
+}

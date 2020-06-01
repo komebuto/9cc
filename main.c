@@ -17,10 +17,7 @@ LVar *locals;
 Node *code[100];
 
 int main(int argc, char **argv){
-    if (argc != 2) {
-	    error("引数の個数が正しくありません");
-	return 1;
-    }
+    if (argc != 2) error("引数の個数が正しくありません");
      
     globals = calloc(1, sizeof(GVar));
     strings = calloc(1, sizeof(Str));
@@ -29,7 +26,7 @@ int main(int argc, char **argv){
     user_input = argv[1];
 
     // トークナイズ => Token *token
-    tokenize(user_input);
+    tokenizefile(user_input);
     // パース => Node *code[100]
     program();
 

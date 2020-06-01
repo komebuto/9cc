@@ -1,10 +1,24 @@
 #!/bin/bash
+cat <<EOF | gcc -xc -c -o tmp2.o -
+#include <stdio.h>
+int foo() { int foo = 1; return foo;}
+int twice (int x) { return 2*x; }
+int p (int x, int y) { return x + y; }
+int mp (int x, int y, int z) { return x*y+z; }
+int mpm (int x, int y, int z, int u) { return x*y + z*u; }
+int mpmp(int a, int b, int c, int d, int e) { return a*b + c*d + e; }
+int mpmpm (int a1, int a2, int a3, int a4, int a5, int a6) { return a1*a2 + a3*a4 + a5*a6; }
+int print_int(int n) { printf("%d\n", n); return 0; }
+void alloc4(int **p, int a, int b, int c, int d) { int ar[4] = {a, b, c, d}; *p = ar; }
+int size() { int **a = 0; int b = 0; return sizeof(a+b); }
+void print(char *str) { printf("%s", str); }
+EOF
 assert() {
     expected="$1"
     input="$2"
-
-    ./9cc "$input" > tmp.s
-    cc -static -o tmp tmp.s function.o
+    echo "$input" > tmp.txt
+    ./9cc tmp.txt > tmp.s || exit
+    gcc -static -o tmp tmp.s tmp2.o
     ./tmp
     actual="$?"
 
@@ -118,8 +132,8 @@ assert 47 'int main() { return 5+6*7; }'
 assert 15 'int main() { return 5*(9-6); }'
 assert 4 'int main() { return (3+5)/2; }'
 assert 10 'int main() { return -10+20; }'
-#assert 10 'int main() { return - -10; }'
-#assert 10 'int main() { return - - +10; }'
+assert 10 'int main() { return - -10; }'
+assert 10 'int main() { return - - +10; }'
 
 assert 0 'int main() { return 0==1; }'
 assert 1 'int main() { return 42==42; }'

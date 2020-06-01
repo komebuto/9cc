@@ -446,7 +446,8 @@ Node *primary() {
     return node;
 }	 
 
-// unary = ("+" | "-")? primary
+// unary = ("+")? primary
+//       | ("-") unary
 //       | ("*" | "&") unary
 //       | "sizeof" unary
 // 単項の+, -。 -x は 0-x に変換
@@ -454,7 +455,7 @@ Node *unary() {
     if (consume_op("+")) {
 	    return primary();
     } else if (consume_op("-")) {
-	    Node *node = new_node(ND_SUB, new_node_num(0), primary());
+	    Node *node = new_node(ND_SUB, new_node_num(0), unary());
         node->type = node->lhs->type;
         return node;
     } else if (consume_op("*")) {
