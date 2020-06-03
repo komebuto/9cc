@@ -129,7 +129,7 @@ GVar *find_gvar(Token *tok) {
             return var;
         }
     }
-    error("%.*s: 定義されていない変数です.", tok->len, tok->str);
+    error_at(tok->str, "%.*s: 定義されていない変数です.", tok->len, tok->str);
 }
 
 GVar *set_gvar(Token *tok, Type *type, bool isass, int ass) {
@@ -156,7 +156,7 @@ Func *find_func(Token *tok) {
     char *undef_var = calloc(tok->len+1, sizeof(char));
     strncpy(undef_var, tok->str, tok->len);
     undef_var[tok->len] = '\0';
-    error("%s: 定義されていない関数です.", undef_var);
+    error_at(tok->str, "%s: 定義されていない関数です.", undef_var);
 }
 
 // 宣言された関数を連結リストfunctionsに格納
@@ -190,6 +190,7 @@ Type *read_array2(Type *type) {
     cur->ptr_to = type;
     return head.ptr_to; 
 }
+
 Type *read_pointer2(TypeKind tk);
 // 宣言された変数の型を調べて引数で渡されたNodeのtypeに格納
 void define_type(Node *node, TypeKind tk) {
@@ -199,7 +200,7 @@ void define_type(Node *node, TypeKind tk) {
     
     Type *type = read_pointer2(tk);
     tok = consume(TK_IDENT);
-    if (!tok) error("識別子として不正です");
+    if (!tok) error_at(tok->str, "識別子として不正です");
     node->type = read_array2(type);
     lvar = set_lvar(tok, node->type);
     node->offset = lvar->offset;
@@ -222,7 +223,7 @@ Type *cast_type (Node *node1, Node *node2) {
     } else if (ty2 == INT) {
         return type1;
     } else {
-        error("演算の型が不正です");
+        error_at(token->str, "演算の型が不正です");
     }
 }
 
@@ -265,7 +266,7 @@ TypeKind eltype() {
     TypeKind tk;
     if (consume(TK_INT)) tk = INT;
     else if (consume(TK_CHAR)) tk = CHAR;
-    else error("eltype が不正です");
+    else error_at(token->str-1, "eltype が不正です");
     return tk;
 }
 
@@ -290,7 +291,7 @@ Node *readdef(TypeKind tk) {
     Node *node = calloc(1, sizeof(Node));
     Type *type = read_pointer2(tk);
     Token *tok = consume(TK_IDENT);
-    if (!tok) error("識別子名が不正です");
+    if (!tok) error_at(tok->str, "識別子名が不正です");
     node->name = tok->str;
     node->len = tok->len;
     node->kind = ND_LVAR;
@@ -407,7 +408,7 @@ Node *primary() {
 
                 // ident
                 Token *tok = consume(TK_IDENT);
-                if (!tok) error("識別子として不正です");
+                if (!tok) error_at(tok->str, "識別子として不正です");
 
                 // ("[" num "]")*
                 //read_array(node);
@@ -671,7 +672,7 @@ Node *defvar(TypeKind tk) {
     Type *type = read_pointer2(tk);
     // ident
     Token *tok = consume(TK_IDENT);
-    if (!tok) error("識別子名が不正です");
+    if (!tok) error_at(tok->str, "識別子名が不正です");
     node->name = tok->str;
     node->len = tok->len;
 
